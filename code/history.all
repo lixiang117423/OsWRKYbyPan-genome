@@ -1,0 +1,1607 @@
+ 5416  cut -f 3 st.g_t.ids.map | sed 's/\"//g'
+ 5418  sudo systemctl restart rstudio-server.service
+ 5419  sudo systemctl status rstudio-server.service
+ 5433  ll data/download
+ 5444  cd .,.
+ 5454  head all.pep.new.fasta
+ 5455  grep ">" all.pep.new.fasta
+ 5459  rm all.pep.new.*
+ 5463  head all.pep.new.modified.nipponbare.fasta
+ 5470  mkdir step6_blast_and_function
+ 5473  mkdir blast_db
+ 5474  cd blast_db
+ 5475  sudo ln -s /opt/software/blast+/bin/* /usr/bin
+ 5476  sudo ln -s /opt/software/blast+/bin/makeblastdb /usr/bin
+ 5477  /opt/software/blast+/bin/makeblastdb -in ../../../data/33pangenome/all.pep.new.modified.nipponbare.fasta -dbtype prot -out 33pangenome
+ 5481  id.for.search
+ 5485  head seq4blast.fa
+ 5487  head ../../data/33pangenome/all.pep.new.modified.nipponbare.fasta
+ 5489  perl ~/project/33PanGenomeWRKYFamily/code/get_fa_by_id.pl id.for.search ../../data/33pangenome/all.pep.new.fasta seq4blast.fa seq4blast.fa
+ 5492  perl ~/project/33PanGenomeWRKYFamily/code/get_fa_by_id.pl id.for.search ../../data/33pangenome/all.pep.new.fasta seq4blast.fa
+ 5496  vi id.for.search
+ 5498  head id.for.search
+ 5499  perl ~/project/33PanGenomeWRKYFamily/code/get_fa_by_id.pl id.for.search ../../data/33pangenome/all.pep.new.modified.nipponbare.fasta seq4blast.fa
+ 5501  vi seq4blast.fa
+ 5503  blastp -query seq4blast.fa -db blast_db/33pangenome -out blast.res.txt -evalue 1e-5 -outfmt 6
+ 5505  head blast.res.txt
+ 5509  cd data/33pangenome
+ 5515  ll gff
+ 5517  ll gff/eachgff
+ 5519  cd gff/eachgff
+ 5520  head 02428.gff
+ 5523  cd 33pangenome
+ 5525  head all.gff
+ 5532  perl ../../code/get_gene_exon_from_gff.pl -in1 blasted.gene.id -in2 ../../data/gff/all.gff -out gene.gff.txt
+ 5535  head ../../data/gff/all.gff
+ 5536  head ../../data/33pangenome/all.gff
+ 5541  vi blasted.gene.id
+ 5542  perl ../../code/get_gene_exon_from_gff.pl -in1 blasted.gene.id -in2 ../../data/33pangenome/all.gff -out gene.gff.txt
+ 5544  head gene.gff.txt
+ 5546  perl ../../code/get_fa_by_id.pl blasted.gene.id ../../data/33pangenome/all.pep.new.fasta gene.pep.fa
+ 5550  clustalo gene.pep.fa > gene.pep.aligned.fa
+ 5553  head gene.pep.aligned.fa
+ 5557  head blasted.gene.id
+ 5558  cat blasted.gene.id
+ 5559  clustalo -i gene.pep.fa > gene.pep.aligned.fa
+ 5560  FastTree gene.pep.aligned.fa > gene.pep.nwk
+ 5561  sudo apt-get install nlopt
+ 5562  sudo apt-get install libnlopt-dev
+ 5563  sudo apt-get install proj-devel
+ 5564  sudo apt update\nsudo apt install libjs-proj4
+ 5565  locate proj.h
+ 5566  BiocManager::install ("proj4",force=TRUE)
+ 5568  sudo apt-get update\nsudo apt-get install proj
+ 5569  sudo apt-get install proj-bin
+ 5571  head /usr/bin/proj
+ 5572  sudo apt-get install libproj-dev libgdal-dev
+ 5573  sudo apt-get install libproj-dev
+ 5576  sudo apt-get install libgdal-dev
+ 5577  sudo apt install libpq-dev gdal-bin libgdal-dev
+ 5579  ping baidu.com
+ 5580  sudo aptitude install gdal-bin libgdal-dev
+ 5596  wget http://planttfdb.gao-lab.org/download_seq.php\?fam\=WRKY
+ 5598  head download_seq.php\?fam=WRKY
+ 5599  mv download_seq.php\?fam=WRKY planttfdb.wrky.fa
+ 5601  head planttfdb.wrky.fa
+ 5602  grep ">" planttfdb.wrky.fa
+ 5604  head planttfdb.wrky.new.fa
+ 5606  cat planttfdb.wrky.new.fa gene.pep.fa > gene.wrky.pep.fa
+ 5608  head gene.wrky.pep.fa
+ 5610  clustalo -i gene.wrky.pep.fa > gene.wrky.pep.aligned.fa
+ 5613  grep ">" gene.wrky.pep.fa| wc -l
+ 5614  nohup clustalo -i gene.wrky.pep.fa > gene.wrky.pep.aligned.fa &
+ 5616  FastTree gene.wrky.pep.aligned.fa > gene.wrky.pep.nwk
+ 5623  ll 
+ 5628  nohup FastTree gene.wrky.pep.aligned.fa > gene.wrky.pep.nwk &
+ 5630  kill 3448396
+ 5631  FastTree -h
+ 5632  nohup FastTree -log fasttree.log gene.wrky.pep.aligned.fa > gene.wrky.pep.nwk &
+ 5636  eog 比对结果可视化.png
+ 5639  tail fasttree.log
+ 5640  14014/60
+ 5644  nohup FastTree gene.wrky.pep.aligned.fa > gene.wrky.pep.2.nwk &
+ 5645  ls
+ 5646  exa
+ 5647  sudo apt install exa
+ 5651  sudo apt update
+ 5653  mkdir exa
+ 5654  sudo mkdir exa
+ 5655  cd exa
+ 5656  EXA_VERSION=$(curl -s "https://api.github.com/repos/ogham/exa/releases/latest" | grep -Po '"tag_name": "v\K[0-9.]+')
+ 5657  sudo curl -Lo exa.zip "https://github.com/ogham/exa/releases/latest/download/exa-linux-x86_64-v${EXA_VERSION}.zip"
+ 5659  sudo unzip exa.zip
+ 5661  sudo unzip -q exa.zip bin/exa -d /usr/local
+ 5663  exa -v-version
+ 5664  exa --version
+ 5665  exa /etc
+ 5666  exa /etc -lhgi
+ 5672  exa -hl
+ 5673  exa -lh
+ 5692  ll data/genome/index
+ 5693  cd ll
+ 5694  kll
+ 5698  mkdir plant-plant
+ 5705  ll ../../../acuce/rna-seq-15_69_87/data/raw_data/
+ 5709  l;
+ 5711  head /home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/stress/data/genome/index/nip.index
+ 5715  head mapping
+ 5719  head stress
+ 5723  head code
+ 5733  head mapping_sam2bam_and_featurecounts.sh 
+ 5736  chead plant-plant
+ 5739  sh mapping.sh
+ 5740  nohup sh mapping.sh &
+ 5747  ll mappp
+ 5762  mv blast_db blastdb
+ 5767  mkdir blastdbwrky
+ 5768  grep ">" gene.wrky.pep.fa | wc -l
+ 5769  makeblastdb -in gene.wrky.pep.fa -dbtype prot -out blastdbwrky/wrky.blast
+ 5771  mkdir resultblastwrky
+ 5773  cat gene.pep.fa
+ 5775  grep ">" gene.pep.fa
+ 5776  blastp -query gene.pep.fa -db blastdbwrky/wrky.blast -out resultblastwrky/blastwrky.txt -evalue 1e-5 -outfmt 6
+ 5781  head blastwrky.txt
+ 5782  cat blastwrky.txt
+ 5784  cd ../../../
+ 5787  cd rna-seq/plant-plant
+ 5794  cd blastdbwrky
+ 5797  mv wrky.blast.p* blastdb
+ 5799  ../../../code/get_fa_by_id.pl
+ 5800  head unique.id
+ 5801  head ../gene.wrky.pep.fa
+ 5802  perl ../../../code/get_fa_by_id.pl unique.id ../gene.wrky.pep.fa selected.pep.fa
+ 5803  grep ">" selected.pep.fa
+ 5805  vi selected.50.blasted.results.R
+ 5807  clustalo -i selected.pep.fa > selected.pep.aligned.fa
+ 5809  FastTree selected.pep.aligned.fa > selected.pep.nwk
+ 5811  vi selected.pep.nwk
+ 5829  cd plant-plant
+ 5831  featureCounts -t exon -g gene_id -a data/genome/ir64.gtf -o /home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/counts/SRR9969593.counts.featurecounts.txt /home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/bam/SRR9969593.sorted.bam
+ 5833  head mapping.sh
+ 5834  ll ../stress
+ 5835  ll ../stress/data
+ 5836  ll ../stress/data/genome
+ 5837  featureCounts -t exon -g gene_id -a ../stress/data/genome/Nip.gtf -o counts/A87_87_1.counts bam/A87_87_1.sorted.bam
+ 5838  featureCounts -p -t exon -g gene_id -a ../stress/data/genome/Nip.gtf -o counts/A87_87_1.counts bam/A87_87_1.sorted.bam
+ 5840  featureCounts -p -t exon -g gene_id -a ../stress/data/genome/Nip.gtf -o counts/A87_87_2.counts bam/A87_87_2.sorted.bam
+ 5841  featureCounts -p -t exon -g gene_id -a ../stress/data/genome/Nip.gtf -o counts/A87_87_3.counts bam/A87_87_3.sorted.bam
+ 5842  featureCounts -p -t exon -g gene_id -a ../stress/data/genome/Nip.gtf -o counts/A87_69_3.counts bam/A87_69_3.sorted.bam
+ 5843  featureCounts -p -t exon -g gene_id -a ../stress/data/genome/Nip.gtf -o counts/A87_69_2.counts bam/A87_69_2.sorted.bam
+ 5844  featureCounts -p -t exon -g gene_id -a ../stress/data/genome/Nip.gtf -o counts/A87_69_1.counts bam/A87_69_1.sorted.bam
+ 5851  cd warmnighttemp
+ 5856  cd plant-plant/
+ 5858  cut -f 1,7 counts/A87_87_1.counts | grep -v '^#' > counts/A87_87_1.counts.txt
+ 5859  head counts/A87_87_1.counts.txt
+ 5860  cut -f 1,7 counts/A87_87_2.counts | grep -v '^#' > counts/A87_87_2.counts.txt
+ 5861  cut -f 1,7 counts/A87_87_3.counts | grep -v '^#' > counts/A87_87_3.counts.txt
+ 5862  cut -f 1,7 counts/A87_69_3.counts | grep -v '^#' > counts/A87_69_3.counts.txt
+ 5863  cut -f 1,7 counts/A87_69_2.counts | grep -v '^#' > counts/A87_69_2.counts.txt
+ 5864  cut -f 1,7 counts/A87_69_1.counts | grep -v '^#' > counts/A87_69_1.counts.txt
+ 5865  ll counts
+ 5867  cat ~/.bashrc
+ 5868  vi ~/.bash_profile
+ 5875  cd acuce/rna-seq-15_69_87
+ 5877  pip3 install torch==1.10.2+cpu torchvision==0.11.3+cpu torchaudio==0.10.2+cpu -f https://download.pytorch.org/whl/cpu/torch_stable.html
+ 5883  mkdir pytorch
+ 5884  cd pytorch
+ 5886  wget https://pytorch.org/tutorials/_downloads/361322e82f6f3158670d917a717329e1/intro.ipynb
+ 5892  wget https://mafft.cbrc.jp/alignment/software/mafft_7.490-1_amd64.deb
+ 5894  scp -p 27450 root@138.128.207.183:/root/download/mafft_7.490-1_amd64.deb
+ 5895  scp -P 27450 root@138.128.207.183:/root/download/mafft_7.490-1_amd64.deb
+ 5896  scp -P 27450 root@138.128.207.183:/root/download/mafft_7.490-1_amd64.deb ./
+ 5898  sudo dpkg -i mafft_7.490-1_amd64.deb
+ 5900  mafft --help
+ 5904  cd results/step6_blast_and_function
+ 5906  /usr/bin/mafft gene.wrky.pep.fa > gene.wrky.pep.mafft.aligned.fa
+ 5907  /usr/bin/mafft --threads 70 gene.wrky.pep.fa > gene.wrky.pep.mafft.aligned.fa
+ 5908  /usr/bin/mafft --thread 70 gene.wrky.pep.fa > gene.wrky.pep.mafft.aligned.fa
+ 5909  nohup pip3 install torch==1.10.2+cpu torchvision==0.11.3+cpu torchaudio==0.10.2+cpu -f https://download.pytorch.org/whl/cpu/torch_stable.html &
+ 5914  python 
+ 5915  cd .ssh
+ 5917  vi authorized_keys
+ 5923  cat /etc/profile
+ 5925  cat .bash_profile
+ 5926  vi .bash_profile
+ 5928  cat /etc/bash.bashrc
+ 5934  cat .bashrc
+ 5935  vi .zshrc
+ 5937  cat .zshrc
+ 5942  sudo git clone https://github.com/coolbutuseless/dplyr-cli
+ 5944  cd dplyr-cli
+ 5946  sudo ln -s /opt/software/dplyr-cli/dplyr /usr/bin
+ 5947  head /usr/bin/dplyr
+ 5949  cd project/33PanGenomeWRKYFamily/results
+ 5951  cd step6_blast_and_function
+ 5953  cd resultblastwrky
+ 5956  cat blastwrky.txt | dplyr select -c 1
+ 5959  cll
+ 5964  cd autoEmailNote
+ 5968  rm nohup.out
+ 5972  vi 农大最新通知.py
+ 5973  nohup python 农大最新通知.py & 
+ 5975  nohup python3 农大最新通知.py & 
+ 5976  cat nohup.out
+ 5978  python -v
+ 5979  conda deactiva base
+ 5980  conda deactivate base
+ 5988  conda env list
+ 5993  ls -l /usr/bin | grep python
+ 5994  /usr/bin/python3 python3 农大最新通知.py
+ 5995  /usr/bin/python3.8 python3 农大最新通知.py
+ 5999  sudo rm /usr/bin/python
+ 6000  sudo ln -s /usr/bin/python3.8 /usr/bin/python
+ 6001  /usr/bin/python
+ 6007  pip3 install bs4
+ 6008  /usr/bin/python 农大最新通知.py
+ 6009  nohup /usr/bin/python 农大最新通知.py  &
+ 6013  sudo apt-get install imagemagick
+ 6015  sudo apt-get install build-essential
+ 6016  cd project/33PanGenomeWRKYFamily/results/step6_blast_and_function
+ 6019  sudo apt-get install fim
+ 6021  export DISPLAY=:0.0
+ 6023  export display=:0.0
+ 6024  display 比对结果可视化.png
+ 6030  du
+ 6031  du -h
+ 6032  du -hl
+ 6033  du -hs
+ 6039  cd jupyterlab
+ 6041  cd Python相关
+ 6043  git clone https://github.com/justmarkham/pycon-2019-tutorial.git
+ 6045  pip3 instal matplotlib
+ 6047  conda deactivate
+ 6048  pip3 install matplotlib
+ 6049  which python
+ 6050  where python
+ 6053  cd powerlevel10k
+ 6069  cd results/step2_hmm_search
+ 6073  cd step4_seq_related
+ 6079  ll rna-seq/warmnighttemp
+ 6080  ll rna-seq/warmnighttemp/data
+ 6081  cd rna-seq/warmnighttemp
+ 6083  cat mapping_sam2bam_and_featurecounts.sh
+ 6085  head counts.txt
+ 6087  cat counts.txt| less -s
+ 6088  cat counts.txt| less -
+ 6089  cat counts.txt| less -S
+ 6090  cd ../..
+ 6094  mkdir step7_rna-seq
+ 6101  ll data/pfam/PF
+ 6102  ll data/pfam/
+ 6104  head README.md
+ 6105  cat README.md
+ 6109  mkdir step8_glaberrima
+ 6110  cd step8_glaberrima
+ 6112  wget http://planttfdb.gao-lab.org/download_seq.php\?sp\=Ogl\&fam\=WRKY
+ 6114  head download_seq.php\?sp=Ogl\&fam=WRKY
+ 6115  mv download_seq.php\?sp=Ogl\&fam=WRKY glaberrima.pwrky.pep.fa
+ 6120  hmmbuild new.hmm glaberrima.pwrky.pep.aln
+ 6122  rm new.hmm
+ 6123  rm glaberrima.pwrky.pep.aln
+ 6125  rm glaberrima.pwrky.pep.dnd
+ 6127  hmmsearch --domtblout planttfdb_glaberrima_2_pfam.txt --cut_tc ../../data/pfam/PF03106.hmm glaberrima.pwrky.pep.fa
+ 6129  cat ../../README.md
+ 6130  perl ../../code/domain_xulie.pl planttfdb_glaberrima_2_pfam.txt glaberrima.pwrky.pep.fa glaberrima.pwrky.1.domain.fa 1
+ 6132  head glaberrima.pwrky.1.domain.fa
+ 6135  hmmbuild new.hmm glaberrima.pwrky.1.domain.aln
+ 6138  cat README.md 
+ 6139  hmmsearch --domtblout planttfdb_japonica_2_pfam.txt --cut_tc n wrky_planttfdb_japonica.new.fas
+ 6140  hmmsearch --domtblout hmm.txt --cut_tc new.hmm ../../data/33pangenome/all.pep.new.fasta
+ 6141  hmmsearch --domtblout hmm.txt new.hmm ../../data/33pangenome/all.pep.new.fasta
+ 6142  hh
+ 6144  grep -v "^#" hmm.txt | awk '$7<0.001 {print}' > first.domain.selected.txt
+ 6146  head first.domain.selected.txt
+ 6147  cat first.domain.selected.txt | less -
+ 6148  cat first.domain.selected.txt | less -S
+ 6149  vi ~/.bashrc
+ 6150  cat first.domain.selected.txt | ss
+ 6151  ss
+ 6153  cat first.domain.selected.txt| ss
+ 6154  systemctl status docker.service
+ 6159  ll .conda
+ 6160  conda config --set auto_activate_base false
+ 6167  cat .condarc
+ 6173  mkdir step9_meme
+ 6174  cd step9_meme
+ 6176  ll ../step4_seq_related
+ 6179  ll step5_motif
+ 6180  llll
+ 6182  rm -rf step9_meme
+ 6185  pip install bioinfokit
+ 6186  pip install bioinfokit -i https://pypi.tuna.tsinghua.edu.cn/simple
+ 6187  python --version
+ 6188  pip3 install bioinfokit -i https://pypi.tuna.tsinghua.edu.cn/simple
+ 6194  rm env_nr.*
+ 6196  rm taxdb.bt
+ 6198  rm taxdb.btd taxdb.bti 
+ 6200  clustal -i 禾谷镰刀菌.fasta > align.fa
+ 6204  head align.fa
+ 6205  clustalo -i 禾谷镰刀菌.fasta > align.fa
+ 6206  FastTree align.fa > tree.nwk
+ 6208  d
+ 6212  mkdir 33PanGenomeGATAFamily
+ 6213  ll 33PanGenomeWRKYFamily
+ 6214  cd 33PanGenomeGATAFamily
+ 6217  mkdir results
+ 6219  cp ../33PanGenomeWRKYFamily/data/pfam/PF00320.hmm data
+ 6220  ll data
+ 6221  head data/PF00320.hmm
+ 6222  ll ../33PanGenomeWRKYFamily/data/33pangenome
+ 6223  cp ../33PanGenomeWRKYFamily/data/33pangenome/all.pep.new.fasta data
+ 6226  wget http://planttfdb.gao-lab.org/download_seq.php\?fam\=GATA
+ 6228  head download_seq.php\?fam=GATA
+ 6229  mv download_seq.php\?fam=GATA planttfdb.gata.fa
+ 6234  mkdir 1-hmmsearch
+ 6235  ll ../../33PanGenomeWRKYFamily/results
+ 6240  hmmsearch --domtblout results/1-hmmsearch/first.search.hmm.txt --cut_tc data/PF00320.hmm data/all.pep.new.fasta
+ 6246  screen -S clustalw
+ 6251  head results/1-hmmsearch/first.search.hmm.txt
+ 6252  cp ../33PanGenomeWRKYFamily/code/* code
+ 6254  perl --version
+ 6255  perl code/domain_xulie.pl results/1-hmmsearch/first.search.hmm.txt data/all.pep.new.fasta results/1-hmmsearch/dirst.domain.fa 1e-5
+ 6258  mv dirst.domain.fa first.domain.fa
+ 6261  grep ">" first.domain.fa | wc -l
+ 6266  hmmbuild new.hmm.pfam.hmm first.domain.aln
+ 6267  hmmsearch --domtblout first.research.txt new.hmm.pfam.hmm ../../data/all.pep.new.fasta
+ 6268  grep -v "^#" first.research.txt | awk '$7<0.001 {print}' 
+ 6269  grep -v "^#" first.research.txt | awk '$7<0.001 {print}' > domain.selected.txt
+ 6270  head domain.selected.txt
+ 6271  perl ../../code/select_redundant_mRNA.pl ../../../33PanGenomeWRKYFamily/results/step1_get_id/mRNA2geneID.txt domain.selected.txt selected.id.txt
+ 6273  head selected.id.txt
+ 6274  cat selected.id.txt | ss
+ 6275  awk '{print $2}' selected.id.txt
+ 6276  awk '{print $2}' selected.id.txt | uniq
+ 6277  awk '{print $2}' selected.id.txt > unique.id.pfam.txt
+ 6279  vi unique.id.pfam.txt
+ 6280  head unique.id.pfam.txt
+ 6283  mkdir 2-planttfdb
+ 6284  cd 2-planttfdb
+ 6286  wget -h
+ 6287  wget -O glaberrima.gata.planttfdb.fa http://planttfdb.gao-lab.org/download_seq.php\?sp\=Ogl\&fam\=GATA
+ 6288  head glaberrima.gata.planttfdb.fa
+ 6289  wget -O indica.planttfdb.gata.fa http://planttfdb.gao-lab.org/download_seq.php\?sp\=Osi\&fam\=GATA
+ 6290  head indica.planttfdb.gata.fa
+ 6291  wget -O japonica.planttfdb.gata.fa http://planttfdb.gao-lab.org/download_seq.php\?sp\=Osj\&fam\=GATA
+ 6293  cat glaberrima.gata.planttfdb.fa indica.planttfdb.gata.fa japonica.planttfdb.gata.fa > planttfdb.gata.fa
+ 6294  gead planttfdb.gata.fa
+ 6295  head planttfdb.gata.fa
+ 6296  clustalw
+ 6298  hmmbuild planttfdb.gata.hmm planttfdb.gata.aln
+ 6299  hmmsearch --domtblout planttfdb.gata.hmm ../../data/all.pep.new.fasta planttfdb.gata.search.res.txt
+ 6300  hmmsearch --domtblout planttfdb.gata.serch.txt planttfdb.gata.hmm ../../data/all.pep.new.fasta
+ 6301  perl ../../code/domain_xulie.pl planttfdb.gata.serch.txt ../../data/all.pep.new.fasta first.domain.fa 1e-5
+ 6305  mkdir 3-seq-related
+ 6306  cd 3-seq-related
+ 6308  perl ../../code/get_fa_by_id.pl ../1-hmmsearch/unique.id.pfam.txt ../../data/all.pep.new.fasta pep.pfam.need.confirm.fa
+ 6309  cat ../1-hmmsearch/unique.id.pfam.txt| ac -l
+ 6310  cat ../1-hmmsearch/unique.id.pfam.txt| wc -l
+ 6311  grep ">" pep.pfam.need.confirm.fa| wc -l
+ 6312  head pep.pfam.need.confirm.fa
+ 6313  cat pep.pfam.need.confirm.fa ../2-planttfdb/planttfdb.gata.fa > 33andplanttfdb.fa
+ 6314  head 33andplanttfdb.fa
+ 6316  clustalo -i 33andplanttfdb.fa > 33andplanttfdb.aligned.fa
+ 6317  grep ">" 33andplanttfdb.fa
+ 6318  head 33andplanttfdb.newid.fa
+ 6319  grep ">" 33andplanttfdb.newid.fa
+ 6320  clustalo -i 33andplanttfdb.newid.fa > 33andplanttfdb.aligned.fa
+ 6325  cd results/3-seq-related
+ 6327  mafft -h
+ 6328  mafft --auto 33andplanttfdb.newid.fa > 33andplanttfdb.newid.mafft.aligned.fa
+ 6330  head 33andplanttfdb.newid.mafft.aligned.fa
+ 6332  FastTree 
+ 6339  wget https://github.com/Cibiv/IQ-TREE/releases/download/v1.6.12/iqtree-1.6.12-Linux.tar.gz
+ 6340  scp -P 27450 root@138.128.207.183:/root/download/iqtree-1.6.12-Linux.tar.gz ./
+ 6344  sudo mkdir qitree
+ 6345  sudo rm qitree
+ 6346  sudo rm -rf qitree
+ 6347  sudo mkdir iqtree
+ 6348  cd iqtree
+ 6349  sudo mv /home/lixiang/temp_file/iqtree-1.6.12-Linux.tar.gz ./
+ 6351  sudo tar -zxvf iqtree-1.6.12-Linux.tar.gz
+ 6353  sudo mv iqtree-1.6.12-Linux/* ./
+ 6356  sudo ln -s /opt/software/iqtree/bin/iqtree /usr/bin
+ 6358  /usr/bin/iqtree -h
+ 6360  sudo mkdir raxml
+ 6362  sudo wget https://cme.h-its.org/exelixis/php/countSource728.php
+ 6364  sudo rm countSource728.php
+ 6366  FastTree 33andplanttfdb.newid.mafft.aligned.fa > 33andplanttfdb.newid.mafft.nwk
+ 6368  head 33andplanttfdb.newid.mafft.nwk
+ 6369  cd /home/lixiang/temp_file
+ 6371  git clone https://github.com/stamatak/standard-RAxML.git
+ 6373  ll standard-RAxML
+ 6374  cd /opt/software/raxml
+ 6376  sudo mv /home/lixiang/temp_file/standard-RAxML/* ./
+ 6378  make -f Makefile.gcc
+ 6379  sudo make -f Makefile.gcc
+ 6381  sudo make -f Makefile.SSE3.gcc
+ 6383  sudo make -f Makefile.PTHREADS.gcc
+ 6384  sudo rm *.o
+ 6385  sudo make -f Makefile.SSE3.PTHREADS.gcc
+ 6387  sudo ln -s raxmlHPC* /usr/bin
+ 6390  ll /opt/software/raxml
+ 6391  /opt/software/raxml/raxmlHPC -h
+ 6393  sudo /opt/software/raxml/raxmlHPC* /usr/bin
+ 6395  sudo rm /usr/bin/raxmlHPC*
+ 6396  sudo ln -s /opt/software/raxml/raxmlHPC* /usr/bin
+ 6397  /usr/bin/raxmlHPC -h
+ 6398  ll /usr/bin/raxmlHPC*
+ 6400  mkdir raxml
+ 6401  /usr/bin/raxmlHPC -s 33andplanttfdb.newid.mafft.aligned.fa -f a -x 1234 -p 1234 -# 1000 -m GTRGAMMA -n raxml/out
+ 6402  cd raxml
+ 6403  /usr/bin/raxmlHPC -s ../33andplanttfdb.newid.mafft.aligned.fa -f a -x 1234 -p 1234 -# 1000 -m GTRGAMMA -n out
+ 6404  mv ../33andplanttfdb.newid.mafft.aligned.fa seq.phy
+ 6405  /usr/bin/raxmlHPC -s seq.phy -f a -x 1234 -p 1234 -# 1000 -m GTRGAMMA -n out
+ 6411  mkdir  r
+ 6413  mkdir perl
+ 6414  mv *.pl perl
+ 6416  mc *.R r
+ 6418  mv *.R r
+ 6420  mv heatmap.r r
+ 6422  mkdir python
+ 6423  mv *.py python
+ 6428  vi accesssion.list
+ 6429  head accesssion.list
+ 6431  grep ">" all.pep.new.fasta > accesssion.id.txt
+ 6433  cd project/33PanGenomeGATAFamily
+ 6437  rm accesssion.id.group.txt
+ 6441  head accesssion.id.group.txt
+ 6443  cd .
+ 6445  cd results/1-hmmsearch
+ 6447  head first.domain.fa
+ 6448  ping 45.32.113.70
+ 6455  sudo mkdir shiny4qPCR_Chinese_Version
+ 6458  sudo mv shiny4qPCR/* shiny4qPCR_Chinese_Version
+ 6460  cd shiny4qPCR_Chinese_Version
+ 6464  chmod -R 777 shiny4qPCR_Chinese_Version
+ 6465  sudo chmod -R 777 shiny4qPCR_Chinese_Version
+ 6469  sudo mkdir Shiny4qPCR
+ 6471  sudo rm -rf Shiny4qPCR
+ 6473  sudo mkdir shiny4qPCR2
+ 6474  sudo mv shiny4qPCR_Chinese_Version/* shiny4qPCR2
+ 6476  chmod -R 777 shiny4qPCR2
+ 6477  sudo chmod -R 777 shiny4qPCR2
+ 6479  ll shiny4qPCR2
+ 6482  cat frps.ini
+ 6483  cat frpc.ini
+ 6487  tail shiny.log
+ 6488  cd shiny.log
+ 6490  sudo systemctl restart shiny-server.service
+ 6491  systemctl status shiny-server.service
+ 6494  ll shiny-server
+ 6495  cd /opt/shiny-server
+ 6497  cd app
+ 6499  chown lixiang:lixiang shiny4*
+ 6500  sudo chown lixiang:lixiang shiny4*
+ 6502  ll shiny4qPCR
+ 6503  cp index.html shiny4qPCR
+ 6505  cp index.html shiny4qPCR2
+ 6506  chown -R lixiang:lixiang shiny4*
+ 6507  sudo chown -R lixiang:lixiang shiny4*
+ 6509  cd shiny4qPCR2
+ 6513  cd /srv
+ 6517  sudo ln -s /opt/shiny-server/app/shiny4qPCR2 shiny4qPCR2
+ 6520  cp /opt/shiny-server/app/shiny4qPCR2/* /opt/shiny-server/app/shiny4qPCR_Chinese_Version
+ 6521  cp -r /opt/shiny-server/app/shiny4qPCR2/* /opt/shiny-server/app/shiny4qPCR_Chinese_Version
+ 6522  ll /opt/shiny-server/app/shiny4qPCR_Chinese_Version
+ 6524  sudo ln -s /opt/shiny-server/app/shiny4qPCR_Chinese_Version shiny4qPCR_Chinese_Version
+ 6526  cd /opt/shiny-server/app/shiny4qPCR
+ 6528  rm index.html
+ 6530  mv ~/temp_file/shiny4qPCR/* ./
+ 6534  chmod -R 777 shiny4qPCR
+ 6553  mkdir warmnighttemp_lncRNA
+ 6556  mkdir data
+ 6559  head sample.info.txt
+ 6560  awk '{print $1}' sample.info.txt
+ 6561  mkdir sra
+ 6565  wget https://sra-pub-run-odp.s3.amazonaws.com/sra//SRR9969514/SRR9969514\n
+ 6566  wget https://sra-pub-run-odp.s3.amazonaws.com/sra/SRR9969514/SRR9969514\n
+ 6568  vi download.txt
+ 6570  wget -b -c -i download.txt
+ 6573  ll ~/project/33PanGenomeWRKYFamily/rna-seq/warmnighttemp/data/genome
+ 6574  cp -r ~/project/33PanGenomeWRKYFamily/rna-seq/warmnighttemp/data/ge
+ 6577  mkdir genome
+ 6578  cd genome
+ 6579  cp -r ~/project/33PanGenomeWRKYFamily/rna-seq/warmnighttemp/data/genome/* ./
+ 6587  mkdir fastq
+ 6596  wget https://sra-pub-run-odp.s3.amazonaws.com/sra/SRR9969515/SRR9969515
+ 6597  kk
+ 6599  tail wget-log
+ 6604  cat download.txt
+ 6608  scp -P 27450 root@138.128.207.183:/root/download/SRR99695* ./
+ 6610  wget https://sra-pub-run-odp.s3.amazonaws.com/sra/SRR9969581/SRR9969581
+ 6611  scp -p 27450 root@138.128.207.183:/root/download/SRR99695* ./
+ 6612  scp -r -P 27450 root@138.128.207.183:/root/download/SRR99695* ./
+ 6613  scp -r -P 27450 root@138.128.207.183:/root/download/SRR9969514 ./
+ 6614  scp -r -P 27450 root@138.128.207.183:/root/download/SRR99695\* ./
+ 6615  nohup scp -r -P 27450 root@138.128.207.183:/root/download/SRR9969514 ./ &
+ 6619  cd data/sra
+ 6625  source ~/.bashrc
+ 6627  mv SRR9969515.1 SRR9969515
+ 6634  rm sra/nohup.out
+ 6635  pfastq-dump --split-3 sra/SRR9969514 fastq
+ 6636  pfastq-dump --split-3 -s sra/SRR9969514 -O fastq
+ 6637  pfastq-dump --split-3 -t 60 -s sra/SRR9969514 -O fastq
+ 6638  for i in sra; do pfastq-dump --split-3 -t 60 -s sra/$i -O fastq; done
+ 6641  for i in sra/\*; do pfastq-dump --split-3 -t 60 -s $i -O fastq/; done
+ 6644  sh code.sh
+ 6645  nohup sh code.sh &
+ 6651  cd fas
+ 6657  mkdir mapping
+ 6658  mkdir baam
+ 6659  rm -rf baam
+ 6660  mkdir bam
+ 6662  mkdir code
+ 6663  cd data/genome/index
+ 6665  head ir64.index.1.ht2
+ 6667  cd project/33PanGenomeWRKYFamily/rna-seq/warmnighttemp
+ 6669  head mapping_sam2bam_and_featurecounts.sh
+ 6674  hisat2 -x ~/project/warmnighttemp_lncRNA/data/genome/index/ir64.index --min-intronlen 20 --maxintronlen 10000 --dta -p 70 -U  ~/project/warmnighttemp_lncRNA/data/fastq/SRR9969514.fastq -S ~/project/warmnighttemp_lncRNA/mapping/SRR9969514.sam
+ 6677  hisat2 -x data/genome/index/ir64.index --min-intronlen 20 --maxintronlen 10000 --dta -p 70 -U  data/fastq/SRR9969514.fastq -S mapping/SRR9969514.sam
+ 6679  hisat2 -x data/genome/index/ir64.index -p 70 -U  data/fastq/SRR9969514.fastq -S mapping/SRR9969514.sam
+ 6680  /usr/bin/hisat2 -x data/genome/index/ir64.index --min-intronlen 20 --dta -p 70 -U  data/fastq/SRR9969514.fastq -S mapping/SRR9969514.sam
+ 6681  /usr/bin/hisat2 -x data/genome/index/ir64.index --min-intronlen 20 --maxintronlen 10000 --dta -p 70 -U  data/fastq/SRR9969514.fastq -S mapping/SRR9969514.sam
+ 6682  /usr/bin/hisat2 -x data/genome/index/ir64.index --min-intronlen 20 --maxintronlen 10000 -p 70 -U  data/fastq/SRR9969514.fastq -S mapping/SRR9969514.sam
+ 6686  /usr/bin/hisat2 -x data/genome/index/ir64.index --minintronlen 20 --maxintronlen 10000 --dta -p 70 -U  data/fastq/SRR9969514.fastq -S mapping/SRR9969514.sam
+ 6687  hisat2 --h
+ 6688  /usr/bin/hisat2 -x data/genome/index/ir64.index -minintronlen 20 -maxintronlen 10000 --dta -p 70 -U  data/fastq/SRR9969514.fastq -S mapping/SRR9969514.sam
+ 6689  /usr/bin/hisat2 -x data/genome/index/ir64.index --dta -p 70 -U  data/fastq/SRR9969514.fastq -S mapping/SRR9969514.sam
+ 6690  /usr/bin/hisat2 -x data/genome/index/ir64.index --maxintronlen 10000 --dta -p 70 -U  data/fastq/SRR9969514.fastq -S mapping/SRR9969514.sam
+ 6691  /usr/bin/hisat2 -x data/genome/index/ir64.index --min-intronlen 20 --max-intronlen 10000 --dta -p 70 -U  data/fastq/SRR9969514.fastq -S mapping/SRR9969514.sam
+ 6694  hisat2 -x ~/project/warmnighttemp_lncRNA/data/genome/index/ir64.index --min-intronlen 20 --max-intronlen 10000 --dta -p 70 -U  ~/project/warmnighttemp_lncRNA/data/fastq/SRR9969514.fastq -S ~/project/warmnighttemp_lncRNA/mapping/SRR9969514.sam
+ 6697  mkdir stringtie
+ 6698  stringtie -h
+ 6699  cd data/genome
+ 6703  samtools sort -@ 70 -o ~/project/warmnighttemp_lncRNA/bam/SRR9969514.bam ~/project/warmnighttemp_lncRNA/mapping/SRR9969514.sam
+ 6704  head mapping.code.sh
+ 6706  cd project/warmnighttemp_lncRNA/data/fastq
+ 6708  ls -lh
+ 6713  cd ssr
+ 6716  cat code.sh
+ 6717  cd project/warmnighttemp_lncRNA/
+ 6723  ll data/sra
+ 6727  ll data/fastq
+ 6728  cd code/
+ 6731  vi make.mapping.code.R
+ 6732  Rscript make.mapping.code.R
+ 6736  sh mapping.code.sh
+ 6737  nohup sh mapping.code.sh &
+ 6741  ll mapping
+ 6747  cat data/sra/code.sh
+ 6753  stringtie --merge -F 0.5 -T 0.5 -G ../data/genome/ir64.gff \* > merged.gtf
+ 6754  stringtie --merge -F 0.5 -T 0.5 -G ../data/genome/ir64.gff \*.gtf > merged.gtf
+ 6755  stringtie --merge -F 0.5 -T 0.5 -G ../data/genome/ir64.gff SRR9969514.gtf SRR9969516.gtf SRR9969515.gtf SRR9969517.gtf SRR9969563.gtf SRR9969565.gtf SRR9969567.gtf SRR9969571.gtf SRR9969573.gtf SRR9969575.gtf SRR9969577.gtf SRR9969579.gtf SRR9969581.gtf SRR9969583.gtf SRR9969585.gtf SRR9969589.gtf SRR9969591.gtf SRR9969593.gtf SRR9969569.gtf > merged.gtf
+ 6761  cat sample.info.txt
+ 6762  ll ../stringtie
+ 6767  hisat2 -x ~/project/warmnighttemp_lncRNA/data/genome/index/ir64.index --min-intronlen 20 --max-intronlen 10000 --dta -p 70 -U  ~/project/warmnighttemp_lncRNA/data/fastq/SRR9969587.fastq -S ~/project/warmnighttemp_lncRNA/mapping/SRR9969587.sam
+ 6768  cd data/do
+ 6771  cd sra
+ 6774  cd fastq
+ 6776  pfastq-dump --split-3 -s ../sra/SRR9969587 -o ./
+ 6777  pfastq-dump --h
+ 6778  pfastq-dump --split-3 -s ../sra/SRR9969587 -O ./
+ 6779  pfastq-dump -t 70 --split-3 -s ../sra/SRR9969587 -O ./
+ 6782  ..
+ 6784  Rscript code/make.mapping.code.R
+ 6785  cat mapping
+ 6786  cat mapping.code.sh
+ 6787  hisat2 -x ~/project/warmnighttemp_lncRNA/data/genome/index/ir64.index --min-intronlen 20 --max-intronlen 10000 --dta -p 70 -U  ~/project/warmnighttemp_lncRNA/data/fastq/SRR9969587.fastq -S ~/project/warmnighttemp_lncRNA/mapping/SRR9969587.sam\nsamtools sort -@ 70 -o ~/project/warmnighttemp_lncRNA/bam/SRR9969587.bam ~/project/warmnighttemp_lncRNA/mapping/SRR9969587.sam\nsamtools index ~/project/warmnighttemp_lncRNA/bam/SRR9969587.bam\nstringtie ~/project/warmnighttemp_lncRNA/bam/SRR9969587.bam -G ~/project/warmnighttemp_lncRNA/data/genome/ir64.gff -j 3 -o ~/project/warmnighttemp_lncRNA/stringtie/SRR9969587.gtf
+ 6788  ll stringtie
+ 6791  stringtie --merge -F 0.5 -T 0.5 -G ../data/genome/ir64.gff SRR9969514.gtf SRR9969516.gtf SRR9969515.gtf SRR9969517.gtf SRR9969563.gtf SRR9969565.gtf SRR9969567.gtf SRR9969571.gtf SRR9969573.gtf SRR9969575.gtf SRR9969577.gtf SRR9969579.gtf SRR9969581.gtf SRR9969583.gtf SRR9969585.gtf SRR9969589.gtf SRR9969591.gtf SRR9969593.gtf SRR9969569.gtf SRR9969587.gtf> merged.gtf
+ 6793  cat merged.gtf| ss
+ 6794  grep -v "^#" merged.gtf
+ 6795  grep -v "^#" merged.gtf | grep -P "\ttranscript\t"
+ 6796  grep -v "^#" merged.gtf | grep -P "\ttranscript\t" | cut -f 9
+ 6797  grep -v "^#" merged.gtf | grep -P "\ttranscript\t" | cut -f 9 | cut -f 2,4 -d " " | sed ’s/;//g’ 
+ 6798  grep -v "^#" merged.gtf | grep -P "\ttranscript\t" | cut -f 9 | cut -f 2,4 -d " " | sed 's/;//g' 
+ 6799  grep -v "^#" merged.gtf | grep -P "\ttranscript\t" | cut -f 9 | cut -f 2,4 -d " " | sed 's/;//g'  | tr ' ' '\t'
+ 6800  grep -v "^#" merged.gtf | grep -P "\ttranscript\t" | cut -f 9 | cut -f 2,4 -d " " | sed 's/;//g'  | tr ' ' '\t' > st.g_t.id.txt
+ 6801  head st.g_t.id.txt
+ 6805  touch READ.md
+ 6806  mv READ.md README.md
+ 6808  cat code/make.mapping.code.R
+ 6811  lll
+ 6813  cd lincRNA
+ 6816  cp * ../warmnighttemp_lncRNA/code
+ 6817  cp -r * ../warmnighttemp_lncRNA/code
+ 6818  cp -r code/* ../warmnighttemp_lncRNA/code
+ 6821  cd warmnighttemp_lncRNA
+ 6825  rm -rf bam
+ 6830  python ../code/make_uniform_ids.py st.g_t.id.txt > st.g_t.id.mapped.txt
+ 6831  python ../code/make_uniform_ids.py st.g_t.id.txt  st.g_t.id.mapped.txt
+ 6833  python ../code/make_uniform_ids.py ir64 st.g_t.id.txt > st.g_t.id.mapped.txt
+ 6835  head st.g_t.id.mapped.txt
+ 6836  cat st.g_t.id.mapped.txt| ss
+ 6837  python ../code/rename_genes.py st.g_t.id.mapped.txt merged.gtf > renamed.merged.gtf
+ 6839  head renamed.merged.gtf
+ 6844  gffcompare -r data/genome/ir64.gff -o stringtie/renamed.merged.gtf
+ 6845  gffcompare -r data/genome/ir64.gtf -o stringtie/renamed.merged.gtf
+ 6846  gffcompare -r data/genome/ir64.gtf -o renamed stringtie/renamed.merged.gtf
+ 6847  mkdir gffcompare
+ 6849  gffcompare -r ../data/genome/ir64.gtf -o renamed ../stringtie/renamed.merged.gtf
+ 6853  rm renamed.*
+ 6856  cd gffcompare
+ 6858  cat renamed.stats
+ 6861  ll data/genome
+ 6862  head data/genome/ir64.genome.fa
+ 6863  mkdir gffread
+ 6864  cat stringtie/renamed.merged.gtf | ss
+ 6865  head data/genome/ir64.genome.new.id.fa
+ 6866  gffread -g data/genome/ir64.genome.new.id.fa -w gffread/transcripts.fa stringtie/renamed.merged.gtf
+ 6867  vi README.md
+ 6868  cd gffread
+ 6870  head transcripts.fa
+ 6871  wget ftp://ftp.ncbi.nlm.nih.gov/refseq/release/plant/plant.*.protein.faa.gz
+ 6873  wget ftp://ftp.ncbi.nlm.nih.gov/refseq/release/plant/plant.*.protein.fa
+ 6875  mkdir RefSeq
+ 6876  cd RefSeq
+ 6877  wget ftp://ftp.ncbi.nlm.nih.gov/refseq/release/plant/plant.\t*.protein.fa.gz
+ 6878  wget ftp://ftp.ncbi.nlm.nih.gov/refseq/release/plant/plant.\*.protein.fa.gz
+ 6881  rm plant.1.protein.faa.gz
+ 6883  mkdir download
+ 6885  wget ftp://ftp.ncbi.nlm.nih.gov/refseq/release/plant/plant.\*.protein.faa.gz
+ 6888  gunzip -h
+ 6891  gunzip *.gz
+ 6892  gunzip plant.193.protein.faa.gz
+ 6893  gunzip plant.1.protein.faa.gz
+ 6894  gunzip plant.*.protein.faa.gz
+ 6895  gunzip plant.194.protein.faa.gz
+ 6896  rm plant.193.protein.faa.gz
+ 6901  rm plant.57.protein.faa.gz
+ 6902  gunzip *
+ 6906  gunzip plant.98.protein.faa.gz
+ 6907  gunzip plant.99.protein.faa.gz
+ 6908  rm plant.98.protein.faa
+ 6909  rm plant.98.protein.faa.gz
+ 6911  wget ftp://ftp.ncbi.nlm.nih.gov/refseq/release/plant/plant.9.protein.faa.gz
+ 6913  gunzip plant.9.protein.faa.gz
+ 6915  wget ftp://ftp.ncbi.nlm.nih.gov/refseq/release/plant/plant.57.protein.faa.gz
+ 6916  gunzip plant.57.protein.faa.gz
+ 6920  ssh-keygen -f "/home/lixiang/.ssh/known_hosts" -R "[138.128.207.183]:27450"
+ 6921  scp -P 27450 root@138.128.207.183:/root/doanload/refseq.plant.protein.fa ./
+ 6922  scp -P 27450 root@138.128.207.183:/root/download/refseq.plant.protein.fa ./
+ 6924  head refseq.plant.protein.fa
+ 6926  diamond makedb --in refseq.plant.protein.fa --db blastdb/plant.refseq.db
+ 6927  ll blastdb
+ 6930  mkdir diamondblast
+ 6931  diamond blastx --query gffread/transcripts.fa --db RefSeq/blastdb/plant.refseq.db --threads 60 --moresensitive --out diamondblast/diamond.results.txt -outfmt 6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore stitle --evalue 0.01 --max-target-seqs 1.
+ 6932  diamond blastx --query gffread/transcripts.fa --db RefSeq/blastdb/plant.refseq.db --threads 60 --more-sensitive --out diamondblast/diamond.results.txt -outfmt 6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore stitle --evalue 0.01 --max-target-seqs 1.
+ 6933  diamond blastx --query gffread/transcripts.fa --db RefSeq/blastdb/plant.refseq.db --threads 60 --more-sensitive --out diamond.results.txt -outfmt 6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore stitle --evalue 0.01 --max-target-seqs 1.
+ 6934  diamond blastx --query gffread/transcripts.fa --db RefSeq/blastdb/plant.refseq.db --threads 60 --more-sensitive --out diamondblast/diamond.results.txt --outfmt 6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore stitle --evalue 0.01 --max-target-seqs 1.
+ 6937  mkdir cpc2
+ 6940  python
+ 6941  pip3 install biopython
+ 6942  pip3 install biopython  -i https://pypi.tuna.tsinghua.edu.cn/simple
+ 6943  /usr/bin/CPC2.py -r -i ../gffread/transcripts.fa
+ 6945  pip install -U libsvm-official
+ 6947  nohup /opt/software/cpc2/bin/CPC2.py -r -i ../gffread/transcripts.fa &
+ 6950  cd diamondblast
+ 6952  cut -f 1 diamond.results.txt | cut -f1 -d '.' | sort | uniq
+ 6953  cut -f 1 diamond.results.txt | cut -f1 -d '.' | sort | uniq > diamond.conding.transcript.txt
+ 6954  head diamond.conding.transcript.txt
+ 6955  mv diamond.conding.transcript.txt diamond.coding.transcript.txt
+ 6956  head diamond.coding.transcript.txt
+ 6961  head cpc2output.txt
+ 6962  cat cpc2output.txt | ss
+ 6963  cat cpc2output.txt
+ 6965  tail nohup.out
+ 6969  /opt/software/cpc2/bin/CPC2.py -r -i ../gffread/transcripts.fa
+ 6973  ll /opt/software/cpc2
+ 6974  ll /opt/software/cpc2/libs
+ 6975  ll /opt/software/cpc2/libs/libsvm
+ 6976  ll /opt/software/cpc2/bin
+ 6977  cat /opt/software/cpc2/bin/CPC2.py
+ 6978  cd /opt/software/cpc2
+ 6980  cd libs
+ 6982  cd libsvm
+ 6984  sudo tar -zxvf libsvm-3.18.tar.gz
+ 6986  cd libsvm-3.18
+ 6988  make clean && make
+ 6989  sudo make clean && make
+ 6992  cd /home/lixiang/project/warmnighttemp_lncRNA
+ 6994  cd cpc2
+ 6996  python3 /opt/software/cpc2/bin/CPC2.py -r -i ../gffread/transcripts.
+ 6999  python3 /opt/software/cpc2/bin/CPC2.py -r -i ../gffread/transcripts.fa
+ 7001  head cpc2output.txt.txt
+ 7002  grep -v '^#' cpc2output.txt.txt | grep -v 'noncoding' | cut -f 1 | cut -f 1 -d '.' | sort | uniq
+ 7003  '^#' cpc2output.txt.txt | grep -v 'noncoding'
+ 7004  grep -v '^#' cpc2output.txt.txt | grep -v 'noncoding'
+ 7005  grep -v '^#' cpc2output.txt.txt | grep -v 'noncoding' | cut -f 1 | cut -f 1 -d '.' | sort | uniq > cpc2.coding.txt
+ 7007  cat diamondblast/diamond.coding.transcript.txt cpc2/cpc2.coding.txt  | sort | uniq > coding.list.txt
+ 7009  cut -f 3 stringtie/st.g_t.id.mapped.txt | sed 's/\"//g' | sort | uniq | fgrep -v -f coding.list.txt > noncoding.list.txt
+ 7011  head noncoding.list.txt
+ 7012  head coding.list.txt
+ 7013  head -n 25 coding.list.txt
+ 7016  fgrep -f noncoding.list.txt stringtie/st.g_t.id.mapped.txt
+ 7017  fgrep -f noncoding.list.txt stringtie/st.g_t.id.mapped.txt | cut -f 4
+ 7018  fgrep -f noncoding.list.txt stringtie/st.g_t.id.mapped.txt | cut -f 4 | sed 's/\"//g'
+ 7019  fgrep -f noncoding.list.txt stringtie/st.g_t.id.mapped.txt | cut -f 4 | sed 's/\"//g' > noncoding.list.transcript.id.txt
+ 7020  head noncoding.list.transcript.id.txt
+ 7021  mkdir nonsequences
+ 7022  gffread --ids noncoding.list.transcript.id.txt -g data/genome/ir64.genome.new.id.fa -w nonsequences/non.coding.fa stringtie/renamed.merged.gtf
+ 7023  gffread -ids noncoding.list.transcript.id.txt -g data/genome/ir64.genome.new.id.fa -w nonsequences/non.coding.fa stringtie/renamed.merged.gtf
+ 7028  mkdir rfam
+ 7030  cd rfam
+ 7031  wget http://ftp.ebi.ac.uk/pub/databases/Rfam/14.7/Rfam.fasta.gz
+ 7032  wget http://ftp.ebi.ac.uk/pub/databases/Rfam/14.7/Rfam.tar.gz
+ 7034  history | cat 
+ 7035  history | cat | less /
+ 7036  history | cat | ss
+ 7037  scp -P 27450 root@138.128.207.183:/root/download/* ./
+ 7038  scp -P 27450 root@138.128.207.183:/root/download/\* ./
+ 7040  tar -zxvf Rfam.tar.gz
+ 7042  head RF00767.cm
+ 7043  rm *
+ 7046  cd nonsequences
+ 7048  head non.coding.fa
+ 7049  head -n 100 non.coding.fa
+ 7052  cd stringtie
+ 7054  cat renamed.merged.gtf| ss
+ 7055  nll
+ 7058  mkdir feturecounts
+ 7059  cat ../33PanGenomeWRKYFamily/rna-seq/warmnighttemp/mapping_sam2bam_and_featurecounts.sh
+ 7060  featureCounts -t exon -g gene_id -a stringtie/renamed.merged.gtf -o feturecounts/SRR9969514.counts.featurecounts.txt bam/SRR9969514.bam
+ 7063  head SRR9969514.counts.featurecounts.txt
+ 7064  cat SRR9969514.counts.featurecounts.txt | ss
+ 7066  featureCounts -h
+ 7069  ll bam
+ 7071  head feature.code.sh
+ 7072  sh feature.code.sh
+ 7074  mkdir blastdb
+ 7075  history| cat | ss
+ 7076  scp -r -P 27450 root@138.128.207.183:/root/download/temp/rfam.fa ./
+ 7078  head rfam.fa
+ 7079  makeblastdb -in rfam.f
+ 7080  cd blastdb
+ 7081  makeblastdb -in ../rfam.fa -dbtype nucl
+ 7085  mc rfam.fa.* blastdb
+ 7086  mv rfam.fa.* blastdb
+ 7088  blastn -task blastn -query ../nonsequences/non.coding.fa -db blastdb/rfam.fa -evalue 1e-5 -outfmt 6 -out rfam.blastn.result.txt
+ 7090  kill 2449793
+ 7091  blastn -task blastn -query ../nonsequences/non.coding.fa -db blastdb/rfam.fa -evalue 1e-5 -outfmt 6 -num_threads 70 -out rfam.blastn.result.txt
+ 7093  grep -i -v mir rfam.blastn.result.txt | cut -f 1 | cut -f 1 -d "."
+ 7094  grep -i -v mir rfam.blastn.result.txt | cut -f 1 | cut -f 1 -d "." | sort | uniq
+ 7095  grep -i -v mir rfam.blastn.result.txt | cut -f 1 | cut -f 1 -d "." | sort | uniq > nc.rfam.ids.txt
+ 7096  fgrep -v -f nc.rfam.ids.txt ../noncoding.list.txt
+ 7097  fgrep -v -f nc.rfam.ids.txt ../noncoding.list.txt > noncoding.no.rfam.txt
+ 7098  head noncoding.no.rfam.txt
+ 7099  python3 ../code/get_long.py ../data/genome/ir64.genome.new.id.fa | cut -f 1- d '.' | sort | uniq > 200bp.traanscript.txt
+ 7100  python3 ../code/get_long.py ../data/genome/ir64.genome.new.id.fa | cut -f 1 -d '.' | sort | uniq > 200bp.traanscript.txt
+ 7103  python3 ../code/get_long.py ../nonsequences/non.coding.fa | cut -f 1 -d '.' | sort | uniq > 200bp.traanscript.txt
+ 7105  head 200bp.traanscript.txt
+ 7106  fgrep -f 200bp.traanscript.txt noncoding.no.rfam.txt
+ 7107  fgrep -f 200bp.traanscript.txt noncoding.no.rfam.txt > noncoding.no.rfam.larger.than.200.txt
+ 7108  head noncoding.no.rfam.larger.than.200.txt
+ 7109  python3 ../code/GTFtranscripts2BEDgenes.py ../stringtie/renamed.merged.gtf > renamed.merged.bed
+ 7110  head renamed.merged.bed
+ 7111  cat renamed.merged.bed
+ 7112  fgrep -f ../coding.list.txt renamed.merged.bed > coding.bed
+ 7113  fgrep -f ../noncoding.list.txt  renamed.merged.bed > noncoding.bed
+ 7114  sudo apt-get install bedtools
+ 7115  intersectBed
+ 7116  intersectBed -v -a noncoding.bed -b coding.bed | cut -f 4 | sort | uniq
+ 7117  intersectBed -v -a noncoding.bed -b coding.bed | cut -f 4 | sort | uniq > linc.rna.txt
+ 7118  head linc.rna.txt
+ 7119  cat linc.rna.txt| wc -l
+ 7123  sudo mkdir cmake
+ 7124  cd cmake
+ 7125  sudo wget https://github.com/Kitware/CMake/releases/download/v3.23.0-rc1/cmake-3.23.0-rc1.tar.gz
+ 7127  sudo rm cmake-3.23.0-rc1.tar.gz
+ 7130  ssh-keygen -f "/root/.ssh/known_hosts" -R "[138.128.207.183]:27450"
+ 7133  sudo tar -zxvf cmake-3.23.0-rc1.tar.gz
+ 7135  sudo mv cmake-3.23.0-rc1/* ./
+ 7143  sudo wget https://github.com/Kitware/CMake/releases/download/v3.23.0-rc1/cmake-3.23.0-rc1-linux-x86_64.tar.gz
+ 7145  rm cmake-3.23.0-rc1-linux-x86_64.tar.gz
+ 7147  sudo rm cmake-3.23.0-rc1-linux-x86_64.tar.gz
+ 7148  sudo scp -P 27450 root@138.128.207.183:/root/download/\* ./
+ 7150  sudo tar -zxvf cmake-3.23.0-rc1-linux-x86_64.tar.gz
+ 7152  sudo mv cmake-3.23.0-rc1-linux-x86_64/* ./
+ 7156  sudo ln -s /opt/software/cmake/bin/c* /usr/bin
+ 7159  cmake --version
+ 7160  cd /opt/software
+ 7161  sudo mkdir bamtools
+ 7169  rm -rf bamtools
+ 7170  sudo rm -rf bamtools
+ 7172  ll tools
+ 7176  sudo cmake -DCMAKE_INSTALL_PREFIX=/my/install/dir ..
+ 7180  sudo make DESTDIR=/my/stage/dir install
+ 7186  sudo mkdir tpmcalculator
+ 7188  sudo git clone https://github.com/ncbi/TPMCalculator.git
+ 7190  sudo mv TPMCalculator/* ./
+ 7197  sudo rm -rf *
+ 7199  sudo git clone git://github.com/pezmaster31/bamtools.git
+ 7201  mv bamtools/* ./
+ 7202  sudo mv bamtools/* ./
+ 7204  mkdir build
+ 7205  sudo mkdir build
+ 7206  cd build
+ 7207  sudo cmake -DCMAKE_INSTALL_PREFIX=../ ..
+ 7208  make
+ 7210  sudo make install
+ 7213  export BAMTOOLS_DIR=`pwd`
+ 7214  export CPPFLAGS="-I $BAMTOOLS_DIR/include/bamtools/"
+ 7215  export LDFLAGS="-L $BAMTOOLS_DIR/lib64 -Wl,-rpath,$BAMTOOLS_DIR/lib64"
+ 7218  cd bamtools
+ 7222  cd tpmcalculator
+ 7224  sudo make
+ 7226  ll build
+ 7227  ll build/Release
+ 7228  ll build/Release/GNU-MacOSX
+ 7229  ll build/Release/GNU-MacOSX/src
+ 7231  cdd project/warmnighttemp_lncRNA
+ 7233  cd project/warmnighttemp_lncRNA
+ 7235  cd feturecounts
+ 7237  awk '{print $9}' SRR9969514.counts.featurecounts.txt
+ 7239  cat ../../33PanGenomeWRKYFamily/rna-seq/warmnighttemp/mapping_sam2bam_and_featurecounts.sh
+ 7242  cut -f 1,7 SRR9969591.counts.featurecounts.txt | grep -v '^#'
+ 7243  mkdir counts
+ 7245  cd counts
+ 7249  head get.couts.sh
+ 7250  sh get.couts.sh
+ 7251  cd feturecounts/counts
+ 7253  head SRR9969514.txt
+ 7255  docker pull wiznote/wizserver
+ 7258  mkdir wiznote
+ 7264  sudo ufw allow 3234
+ 7266  docker run --name wiznote --restart=always -it -d -v /home/lixiang/wiznote/:/wiz/storage -v  /etc/localtime:/etc/localtime -p 3234:80 -p 9269:9269/udp  wiznote/wizserver
+ 7267  cd wiznote
+ 7270  docker pull b3log/siyuan\n
+ 7272  mkdir SiyuanNote
+ 7274  docker help
+ 7275  docker -help 
+ 7277  docker -help b3log/siyuan
+ 7280  docker ps
+ 7282  history
+ 7284  ll SiyuanNote
+ 7285  mv SiyuanNote  siyuanNote
+ 7287  ll wiznote
+ 7290  pwd
+ 7294  ll root
+ 7296  sudo su
+ 7298  which siyuan
+ 7299  where siyuan
+ 7301  ll /usr/local/
+ 7302  cd /usr/local
+ 7305  which docker
+ 7306  where docker
+ 7307  ll /bin/docker
+ 7308  ll /bin/dockerd-rootless-setuptool.sh
+ 7310  cd 文档
+ 7313  julia --version
+ 7318  sudo systemctl restart netdata.service
+ 7322  sudo apt install libgsl-dev
+ 7323  w
+ 7324  clustalo -v
+ 7325  clustalo --h
+ 7326  clustalo --help
+ 7327  FastTree --help
+ 7328  FastTree -help
+ 7330  docker stop wiznote
+ 7331  docker ps -a --no-trunc
+ 7333  docker image rm wiznote/wizserver
+ 7334  docker rmi 4d5be22b4bc6
+ 7335  docker rmi -f 4d5be22b4bc6
+ 7336  docker rmi -f b50c19542512
+ 7337  docker image is
+ 7338  docker image ls
+ 7339  cd /opt/software/frpc
+ 7341  sudo vi frpc.ini
+ 7342  sudo systemctl restart frpc.service
+ 7345  rm -rf siyuanNote
+ 7346  rm -rf wiznote
+ 7347  sudo rm -rf wiznote
+ 7349  df -hl 
+ 7352  ll  下载
+ 7353  rm -rf 下载
+ 7354  rm -rf 公共的
+ 7355  rm -rf 图片
+ 7356  rm -rf 文档
+ 7357  rm -rf 桌面
+ 7358  rm -rf 模板
+ 7359  rm -rf 视频
+ 7360  rm -rf 音乐
+ 7362  ll bin
+ 7364  ll download
+ 7365  cd download
+ 7369  cd temp_file
+ 7371  ping www.web4xiang.com
+ 7373  meme -help
+ 7374  meme -h
+ 7375  meme -version
+ 7377  sudo apt-get update
+ 7378  sudo apt-get install libfftw3-3 libfftw3-dev libtiff5-dev
+ 7379  sudo apt-get install libfftw3-3 libfftw3-dev libtiff5-dev --fix-missing
+ 7380  sudo apt-get install libfftw3-3 --fix-missing
+ 7381  udo apt-get install libfftw3-dev
+ 7382  sudo apt-get install libfftw3-dev
+ 7383  sudo apt-get update -y
+ 7384  sudo apt-get install -y libfftw3-3
+ 7385  sudo apt-get install fftw3 fftw3-dev pkg-config
+ 7389  cd shiny.app
+ 7391  mkdir LeAFtool
+ 7396  chmod -R 777 LeAFtool
+ 7400  sudo ln -s /opt/shiny-server/app/LeAFtool /srv/shiny-server
+ 7402  ufw allow 6824
+ 7403  sudo ufw allow 6824
+ 7404  ll /usr/local/lib/R/site-library/LeAFtool
+ 7405  ll /usr/local/lib/R/site-library/LeAFtool/app
+ 7406  ll /usr/local/lib/R/site-library/LeAFtool/app/ui_code
+ 7407  ll /usr/local/lib/R/site-library/LeAFtool/app/server_code
+ 7408  head /usr/local/lib/R/site-library/LeAFtool/app/server_code/tabAnalysisServer.R
+ 7409  cat /usr/local/lib/R/site-library/LeAFtool/app/server_code/tabAnalysisServer.R
+ 7411  cd LeAFtool
+ 7413  rm -rf *
+ 7415  cp -r /usr/local/lib/R/site-library/LeAFtool/app/* ./
+ 7419  head index.html
+ 7420  cat index.html
+ 7424  cd /opt/shiny-server/app
+ 7428  vi index.html
+ 7431  cd /home
+ 7440  chown -R shiny:shiny shiny
+ 7441  sudo chown -R shiny:shiny shiny
+ 7444  sudo cp -r /home/lixiang/temp_file/* shiny
+ 7446  cd shiny
+ 7448  mkdir leaftool_data
+ 7449  sudo mkdir leaftool_data
+ 7451  rm -rf background
+ 7452  sudo rm -rf background
+ 7453  sudo rm -rf lesion
+ 7454  sudo rm -rf limb
+ 7456  cd /opt/shiny-server/app/LeAFtool
+ 7458  vi ui
+ 7460  vi ui.R
+ 7465  cd leaftool_data
+ 7467  sudo mkdir training samples results
+ 7469  cd training
+ 7470  sudo cp -r /home/lixiang/temp_file/* ./
+ 7473  cd /home/
+ 7477  chown -R shiny:shiny shiny/*
+ 7478  sudo chown -R shiny:shiny shiny/*
+ 7480  ll shiny
+ 7483  mkdir leaftool
+ 7485  sln -s /home/lixiang/leaftool  /home/shiny
+ 7486  ln -s /home/lixiang/leaftool  /home/shiny
+ 7487  sudo ln -s /home/lixiang/leaftool  /home/shiny
+ 7488  cd shiny-server
+ 7490  cd
+ 7491  cd /home/shiny
+ 7493  chown -R shiny:shiny leaftool
+ 7494  sudo chown -R shiny:shiny leaftool
+ 7496  ll leaftool_data
+ 7497  ll leaftool_data/samples
+ 7498  ll leaftool_data/training
+ 7499  cd /home/lixiang
+ 7501  cd /home/shiny/leaftool_data
+ 7503  ll samples
+ 7504  cd samples
+ 7505  cp /home/lixiang/temp_file/samples/* ./
+ 7506  sudo cp /home/lixiang/temp_file/samples/* ./
+ 7508  chown shiny:shiny *
+ 7509  sudo chown shiny:shiny *
+ 7518  ll;l
+ 7522  ifconfig
+ 7529  htop
+ 7530  cd project
+ 7532  df -hl
+ 7534  cd 33PanGenomeWRKYFamily
+ 7536  ll code
+ 7537  sudo cp /home/lixiang/project/33PanGenomeWRKYFamily/code/*.pl /usr/bin
+ 7538  ll /usr/bin
+ 7539  cd 
+ 7541  python3 -m pip install --upgrade pip
+ 7542  python3 -m pip install --upgrade pip -i https://pypi.tuna.tsinghua.edu.cn/simple
+ 7543  python3 -m pip install --upgrade Pillow -i https://pypi.tuna.tsinghua.edu.cn/simple
+ 7544  pip3 install jcvi -i https://pypi.tuna.tsinghua.edu.cn/simple
+ 7549  cd step5_motif
+ 7554  wget https://www.dropbox.com/s/9f4r51xoen8e8e5/rice_fpkmAllData.csv.gz\?dl\=0
+ 7555  scp -P 27450 root@138.128.207.183:/root/download/'rice_fpkmAllData.csv.gz?dl=0' ./
+ 7557  gunzip rice_fpkmAllData.csv.gz\?dl=0
+ 7559  mv rice_fpkmAllData.csv.gz\?dl=0 rice_fpkmAllData.csv.gz
+ 7560  gunzip rice_fpkmAllData.csv.gz
+ 7562  head rice_fpkmAllData.csv
+ 7564  LL
+ 7566  cd project/33PanGenomeWRKYFamily/rna-seq/stress
+ 7568  cd data
+ 7570  ll rawdata
+ 7571  l
+ 7573  cd rawdata
+ 7575  cat sra.id
+ 7577  ll fastq
+ 7579  ll sra
+ 7580  cd stress
+ 7582  cd code
+ 7584  cat heatmap.R
+ 7585  cd ..
+ 7587  cd results
+ 7589  cat group.info.txt
+ 7590  cat group.info.txt | ss
+ 7596  cd project/33PanGenomeWRKYFamily
+ 7597  ll
+ 7598  cd rna-seq
+ 7599  source .bashrc
+ 7600  ll
+ 7601  cd project/33PanGenomeWRKYFamily
+ 7602  cd rna-seq/stress
+ 7603  ll
+ 7604  cd mapping
+ 7605  ll
+ 7606  cd ..
+ 7607  ll
+ 7608  cd code
+ 7609  ll
+ 7610  cd ..
+ 7611  ll
+ 7612  ll code/3
+ 7613  ll code/
+ 7614  cd ..
+ 7615  ll
+ 7616  hisat2 --version
+ 7617  samtools -v
+ 7618  samtools -h
+ 7619  samtools --h
+ 7620  samtools --version
+ 7621  featureCounts --version
+ 7622  R --version
+ 7623  featureCounts
+ 7624  cd ..
+ 7625  ll
+ 7626  cd ..
+ 7627  ll
+ 7628  mkdir pangenome.wrky & cd
+ 7629  ll
+ 7630  cd project/pangenome.wrky
+ 7631  ll
+ 7632  mkdir data
+ 7633  cd data
+ 7634  ll
+ 7635  wget https://cgm.sjtu.edu.cn/3kricedb/data/pep.fa
+ 7636  head pep.fa
+ 7637  grep ">" pep.fa| wc -l
+ 7638  ll
+ 7639  grep ">" pep.fa
+ 7640  grep ">U" pep.fa | wc -l
+ 7641  grep ">O" pep.fa | wc -l
+ 7642  35633+15362
+ 7643  cat pep.fa
+ 7644  cd ..
+ 7645  ll
+ 7646  mkdir results
+ 7647  /home/lixiang/project/33PanGenomeWRKYFamily/data/pfam/PF10
+ 7648  /home/lixiang/project/33PanGenomeWRKYFamily/data/pfam/
+ 7649  ll /home/lixiang/project/33PanGenomeWRKYFamily/data/pfam/
+ 7650  ll
+ 7651  cd ../../../pangenome.wrky
+ 7652  hmmsearch --domtblout resu
+ 7653  mkdir results/hmmsearch
+ 7654  hmmsearch --domtblout results/hmmsearch/hxx.txt --cut_tc /home/lixiang/project/33PanGenomeWRKYFamily/data/pfam/PF03106.hmm data/pep.fa
+ 7655  ll results/hmmsearch
+ 7656  perl /usr/bin/domain_xulie.pl results/hmmsearch/hxx.txt data/pep.fa results/hmmsearch/first.domain.fa 1
+ 7657  head results/hmmsearch/first.domain.fa
+ 7658  grep ">" results/hmmsearch/first.domain.fa | wc -l
+ 7659  cd data
+ 7660  ll
+ 7661  wget https://cgm.sjtu.edu.cn/3kricedb/data/pan.fa
+ 7662  wget https://cgm.sjtu.edu.cn/3kricedb/data/pan.gff
+ 7663  wget https://cgm.sjtu.edu.cn/3kricedb/data/GeneFeature.txt
+ 7664  ll
+ 7665  head GeneFeature.txt
+ 7666  cat GeneFeature.txt | ss
+ 7667  ll
+ 7668  head pan.gff
+ 7669  head pan.fa
+ 7670  cat pan.gff
+ 7671  wget http://planttfdb.gao-lab.org/download_seq.php\?fam\=WRKY -O planttfdb.wrky.all.pep.fa
+ 7672  ll
+ 7673  head planttfdb.wrky.all.pep.fa
+ 7674  grep ">" planttfdb.wrky.all.pep.fa > planttfdb.wrky.all.pep.id.txt
+ 7675  head planttfdb.wrky.all.pep.id.txt
+ 7676  grep -c "Oryza" planttfdb.wrky.all.pep.id.txt
+ 7677  grep "Oryza" planttfdb.wrky.all.pep.id.txt
+ 7678  grep "Oryza" planttfdb.wrky.all.pep.id.txt > planttfdb.wrky.oryza.pep.id.txt
+ 7679  head planttfdb.wrky.oryza.pep.id.txt
+ 7680  ll
+ 7681  mkdir pangenome
+ 7682  mv GeneFeature.txt pangenome
+ 7683  mv pan* pangenome
+ 7684  mv pan.* pangenome
+ 7685  mv pan.\* pangenome
+ 7686  ll
+ 7687  ll pangenome
+ 7688  ll
+ 7689  mv pep.fa pangenome
+ 7690  mkdir planttfdb
+ 7691  ll
+ 7692  mv planttfdb* planttfdb/
+ 7693  mv planttfdb\* planttfdb/
+ 7694  ll
+ 7695  cd planttfdb
+ 7696  ll
+ 7697  perl /usr/bin/get_fa_by_id.pl planttfdb.wrky.oryza.pep.id.txt planttfdb.wrky.all.pep.fa planttfdb.wrky.oryza.pep.fa
+ 7698  ll
+ 7699  head planttfdb.wrky.oryza.pep.fa
+ 7700  sed 's/>//' planttfdb.wrky.oryza.pep.id.txt
+ 7701  history
+ 7702  grep "Oryza" planttfdb.wrky.all.pep.id.txt | sed 's/>//' > planttfdb.wrky.oryza.pep.id.txt
+ 7703  head planttfdb.wrky.oryza.pep.id.txt
+ 7704  perl /usr/bin/get_fa_by_id.pl planttfdb.wrky.oryza.pep.id.txt planttfdb.wrky.all.pep.fa planttfdb.wrky.oryza.pep.fa
+ 7705  head planttfdb.wrky.oryza.pep.fa
+ 7706  mkdir blastdb
+ 7707  makeblastdb -in planttfdb.wrky.oryza.pep.fa -out blastdb/blast.db
+ 7708  makeblastdb -in planttfdb.wrky.oryza.pep.fa -dbtype prot -out blastdb/blast.db
+ 7709  ll blastdb
+ 7710  cd ..
+ 7711  ll
+ 7712  cd ..
+ 7713  ll
+ 7714  ll data/pangenome
+ 7715  mkdir results/planttfdb.blast
+ 7716  blastn -query data/pangenome/pan.fa -db data/planttfdb/blastdb/blast.db -out results/planttfdb.blast/planttfdb,blast.res.txt -evalue 1e-5 -outfmt 6
+ 7717  history
+ 7718  cd data/planttfdb
+ 7719  ll
+ 7720  head planttfdb.wrky.oryza.pep.fa
+ 7721  ll blastdb
+ 7722  makeblastdb -in planttfdb.wrky.oryza.pep.fa -dbtype prot -out blastdb/blast.db
+ 7723  cd ../../
+ 7724  blastn -query data/pangenome/pan.fa -db data/planttfdb/blastdb/blast.db -out results/planttfdb.blast/planttfdb,blast.res.txt -evalue 1e-5 -outfmt 6
+ 7725  blastn -query data/pangenome/pan.fa -db data/planttfdb/blastdb/blast.db -out results/planttfdb.blast/planttfdb.blast.res.txt -evalue 1e-5 -outfmt 6
+ 7726  blastn -query data/pangenome/pan.fa -db /home/lixiang/project/pangenome.wrky/data/planttfdb/blastdb/blast.db -out /home/lixiang/project/pangenome.wrky/results/planttfdb.blast/planttfdb.blast.res.txt -evalue 1e-5 -outfmt 6
+ 7727  ll
+ 7728  cd data/planttfdb/blastdb
+ 7729  ll
+ 7730  rm *
+ 7731  ll
+ 7732  cd ..
+ 7733  ll
+ 7734  diamond makedb --in planttfdb.wrky.oryza.pep.fa --db blastdb/plantdfdb
+ 7735  ll blastdb
+ 7736  ll
+ 7737  cd ../
+ 7738  ll
+ 7739  diamond blastp --db data/planttfdb/blastdb/plantdfdb.dmnd --query data/pangenome/pan.fa --out results/planttfdb.blast/planttfdb.res.txt --sensitive --outfmt 6 --evalue 1e-5
+ 7740  ll
+ 7741  diamond blastp --db data/planttfdb/blastdb/plantdfdb.dmnd --query data/pangenome/pep.fa --out results/planttfdb.blast/planttfdb.res.txt --sensitive --outfmt 6 --evalue 1e-5
+ 7742  ll results/planttfdb.blast/planttfdb.res.txt
+ 7743  cd results/planttfdb.blast
+ 7744  ll
+ 7745  rm *blast*
+ 7746  ll
+ 7747  head planttfdb.res.txt
+ 7748  cat planttfdb.res.txt | ss
+ 7749  cat planttfdb.res.txt | ss | head
+ 7750  cat planttfdb.res.txt | ss
+ 7751  cat planttfdb.res.txt | awk '{print NF}'
+ 7752  cat planttfdb.res.txt  | awk -F ':'  '$12<1e-5{print $0}'
+ 7753  cat planttfdb.res.txt  | awk -F ':'  '$12<1e-5{print $1}'
+ 7754  cat planttfdb.res.txt  | awk -F ':'  '$12<1e-5{print $11}'
+ 7755  cat planttfdb.res.txt  | awk -F ':'  '$12<1e-5{print $0}'
+ 7756  cat planttfdb.res.txt  | awk -F ':'  '$12<1e-5{print $0}' | awk '{print $1}'
+ 7757  cat planttfdb.res.txt  | awk -F ':'  '$12<1e-5{print $0}' | awk '{print $1}' | uniq
+ 7758  cat planttfdb.res.txt  | awk -F ':'  '$12<1e-5{print $0}' | awk '{print $1}' | uniq > unique.id.1e-5.txt
+ 7759  ll
+ 7760  head unique.id.1e-5.txt
+ 7761  wc -l unique.id.1e-5.txt
+ 7762  cat planttfdb.res.txt  | awk -F ':'  '$12<1e-6{print $0}' | awk '{print $1}' | uniq > unique.id.1e-5.txt
+ 7763  wc -l unique.id.1e-5.txt
+ 7764  cat planttfdb.res.txt  | awk -F ':'  '$12<1e-100{print $0}' | awk '{print $1}' | uniq > unique.id.1e-5.txt
+ 7765  wc -l unique.id.1e-5.txt
+ 7766  cat planttfdb.res.txt  | awk -F ':'  '$12<0.00001{print $0}' | awk '{print $1}' | uniq > unique.id.1e-5.txt
+ 7767  wc -l unique.id.1e-5.txt
+ 7768  cat planttfdb.res.txt  | awk -F ':'  '$12<0.0000001{print $0}' | awk '{print $1}' | uniq > unique.id.1e-5.txt
+ 7769  wc -l unique.id.1e-5.txt
+ 7770  cat planttfdb.res.txt  | awk -F ':'  '$11<1e-5{print $0}' | awk '{print $1}' | uniq > unique.id.1e-5.txt
+ 7771  ll
+ 7772  perl /usr/bin/get_fa_by_id.pl unique.id.1e-5.txt ../../data/pangenome/pep.fa planttfdb.balsted.pep.fa
+ 7773  head planttfdb.balsted.pep.fa
+ 7774  ll
+ 7775  grep ">" planttfdb.balsted.pep.fa | wc -l
+ 7776  ll
+ 7777  wc -l planttfdb.res.txt
+ 7778  ll
+ 7779  clustalo -i planttfdb.balsted.pep.fa > planttfdb.balsted.pep.aligned.fa
+ 7780  ll
+ 7781  FastTree planttfdb.balsted.pep.aligned.fa > planttfdb.blasted.tree.nwk
+ 7782  ll
+ 7783  cd ..
+ 7784  cd data/pangenome
+ 7785  ll
+ 7786  grep ">" pan.fa
+ 7787  ll
+ 7788  gffread pan.gff -T -o pan.gtf
+ 7789  ll
+ 7790  head pan.gtf
+ 7791  ll
+ 7792  cd ll
+ 7793  ll
+ 7794  cd ../../
+ 7795  ll
+ 7796  cd results/hmmsearch
+ 7797  ll
+ 7798  head first.domain.fa
+ 7799  grep ">" first.domain.fa
+ 7800  grep ">" first.domain.fa | wc -l
+ 7801  dc /home/shiny
+ 7802  ll
+ 7803  cd /home/shiny
+ 7804  ll
+ 7805  sudo cp -r /home/lixiang/temp_file/rice/* ./
+ 7806  ll
+ 7807  sudo chown -R shiny:shiny learning
+ 7808  sudo chown -R shiny:shiny results
+ 7809  sudo chown -R shiny:shiny samples
+ 7810  ll
+ 7811  ll results
+ 7812  ll
+ 7813  ll results
+ 7814  ll learning
+ 7815  ll
+ 7816  R
+ 7817  cd
+ 7818  cd temp_file
+ 7819  ll
+ 7820  cd rice
+ 7821  ll
+ 7822  ll learning
+ 7823  library(LeAFtool)
+ 7824  getweb
+ 7825  R
+ 7826* cd temp_file
+ 7827* cd rice
+ 7828* ll
+ 7829* ll learning
+ 7830* ll results
+ 7831* head results/merge_ResumeCount.csv
+ 7832* cat results/merge_ResumeCount.csv  | ss
+ 7833* cp -r /opt/shiny-server/app/LeAFtool/ ./
+ 7834* ll
+ 7835* mv LeAFtool/ LeAFtool.test
+ 7836* ll
+ 7837* cd LeAFtool.test
+ 7838* ll
+ 7839* cd ..
+ 7840* ll
+ 7841* ll /opt/shiny-server/app
+ 7842* sudo ln -s /home/lixiang/temp_file/LeAFtool.test /srv/shiny-server
+ 7843* ll /srv/shiny-server
+ 7844* cp -r /opt/shiny-server/app/LeAFtool/* ./LeAFtool.test
+ 7845* ll
+ 7846* ll LeAFtool.test
+ 7847* sudo ln -s /home/lixiang/temp_file/LeAFtool.test /srv/shiny-server
+ 7848* ll /srv/shiny-server
+ 7849* sudo rm /srv/shiny-server/LeAFtool.test
+ 7850* sudo ln -s /home/lixiang/temp_file/LeAFtool.test /srv/shiny-server
+ 7851* ll /srv/shiny-server
+ 7852* ll
+ 7853* cd ..
+ 7854* ll
+ 7855* mv rice/LeAFtool.test/ ./
+ 7856* ll
+ 7857* cd
+ 7858* ll
+ 7859* ll shiny-server
+ 7860* ll
+ 7861* cd shiny-server
+ 7862* ll
+ 7863* mkdir app
+ 7864* ll
+ 7865* cd app
+ 7866* ll
+ 7867* mc ~/temp_file/LeAFtool.test/ ./
+ 7868* mv ~/temp_file/LeAFtool.test/ ./
+ 7869* ll
+ 7870* rm /srv/shiny-server/LeAFtool.test
+ 7871* sudo rm /srv/shiny-server/LeAFtool.test
+ 7872* ll /srv/shiny-server
+ 7873* ll
+ 7874* sudo chown lixiang:lixiang /srv/shiny-server
+ 7875* ll /srv/shiny-server
+ 7876* sudo chown -R  lixiang:lixiang /srv/shiny-server
+ 7877* ll /srv/shiny-server
+ 7878* cd
+ 7879* cd shiny-server/app
+ 7880* ll
+ 7881* ln -s /home/lixiang/shiny-server/app/LeAFtool.test/ /srv/shiny-server
+ 7882* ll /srv/shiny-server
+ 7883* ll
+ 7884* ll LeAFtool.test
+ 7885* ln -s /home/lixiang/shiny-server/app/LeAFtool.test /srv/shiny-server
+ 7886* rm /srv/shiny-server/LeAFtool.test
+ 7887* ln -s /home/lixiang/shiny-server/app/LeAFtool.test /srv/shiny-server
+ 7888* cd ..
+ 7889* ll
+ 7890* cd shiny.log
+ 7891* ll
+ 7892* cat LeAFtool.test-shiny-20220303-132122-41027.logv
+ 7893* cat LeAFtool.test-shiny-20220303-132122-41027.log
+ 7894* sudo cat LeAFtool.test-shiny-20220303-132122-41027.log
+ 7895* ll
+ 7896  cd /home/lixiang
+ 7897  cd ..
+ 7898  cd shiny
+ 7899  ll
+ 7900  rm -rf *
+ 7901  sudo rm -rf *
+ 7902  ll
+ 7903  ll lixiang-2022-03-03
+ 7904  ll
+ 7905  ll lixiang-2022-03-03
+ 7906  sudo rm -rf lixiang-2022-03-03
+ 7907  ll
+ 7908  ll lixiang-2022-03-03
+ 7909  ll
+ 7910  sudo rm -rf lixiang-2022-03-03
+ 7911  ll
+ 7912  ll lixiang-2022-03-03
+ 7913* ll
+ 7914* cat LeAFtool.test-shiny-20220303-143517-35781.log
+ 7915* sudo cat LeAFtool.test-shiny-20220303-143517-35781.log
+ 7916  ll
+ 7917  ll xiang-2022-03-03
+ 7918  cd xiang-2022-03-03
+ 7919  unzip 0.zip
+ 7920  sudo unzip 0.zip
+ 7921  ll
+ 7922  cd ..
+ 7923  sudo rm -rf lixiang-2022-03-03
+ 7924  ll
+ 7925  rsudo rm -rf xiang-2022-03-03
+ 7926  sudo rm -rf xiang-2022-03-03
+ 7927  ll
+ 7928  ll lixiang-2022-03-03
+ 7929  ll
+ 7930  sudo rm -rf lixiang-2022-03-03
+ 7931  ll
+ 7932  ll lixiang-2022-03-03
+ 7933  sudo rm -rf lixiang-2022-03-03
+ 7934  ll
+ 7935  ll lixiang-2022-03-03
+ 7936* ll
+ 7937* cat LeAFtool.test-shiny-20220303-144448-46365.log
+ 7938* sudo cat LeAFtool.test-shiny-20220303-144448-46365.log
+ 7939  ll
+ 7940  cd lixiang-2022-03-03
+ 7941  ll
+ 7942  unzip 0.zip
+ 7943  sudo unzip 0.zip
+ 7944  ll
+ 7945  cd ..
+ 7946  ll
+ 7947  rm -rf lixiang-2022-03-03
+ 7948  sudo rm -rf lixiang-2022-03-03
+ 7949  ll
+ 7950  cd lixiang-2022-03-03
+ 7951  ll
+ 7952  cd ..
+ 7953  ll
+ 7954  ll lixiang-2022-03-03
+ 7955  sudo rm -rf lixiang-2022-03-03
+ 7956  ll
+ 7957  ll lixiang-2022-03-03
+ 7958  cat lixiang-2022-03-03/run.sh
+ 7959  unzip /home/shiny/lixiang-2022-03-03/0.zip
+ 7960  sudo unzip /home/shiny/lixiang-2022-03-03/0.zip
+ 7961  ll
+ 7962  cd lixiang-2022-03-03
+ 7963  ll
+ 7964  cd ..
+ 7965  ll
+ 7966  sudo rm -rf *
+ 7967  ll
+ 7968  ll lixiang-2022-03-03
+ 7969  head lixiang-2022-03-03/run.sh
+ 7970  sh lixiang-2022-03-03/run.sh
+ 7971  ll lixiang-2022-03-03
+ 7972  ll
+ 7973  cd shi
+ 7974  ll
+ 7975  sudo rm -rf lixiang-2022-03-03
+ 7976  ll
+ 7977  ll lixiang-2022-03-03
+ 7978  ll
+ 7979  sudo rm -rf lixiang-2022-03-03
+ 7980  ll
+ 7981  ll lixiang-2022-03-03
+ 7982  head lixiang-2022-03-03/run.sh
+ 7983  cd lixiang-2022-03-03
+ 7984  ll
+ 7985  sh run.sh
+ 7986  ll
+ 7987  cd ..
+ 7988  ll
+ 7989  sudo rm -rf lixiang-2022-03-03
+ 7990  ll
+ 7991  ll lixiang-2022-03-03
+ 7992  cd lixiang-2022-03-03
+ 7993  ll
+ 7994  rm -rf *
+ 7995  sudo rm -rf *
+ 7996  ll
+ 7997* sudo cat LeAFtool.test-shiny-20220303-152654-37023.log
+ 7998  ll
+ 7999  sh run.sh
+ 8000  gunzip 0.zip /home/shiny/lixiang-2022-03-03
+ 8001  ll
+ 8002  R
+ 8003  lll
+ 8004  ll
+ 8005  sudo rm *
+ 8006  ll
+ 8007  R
+ 8008  ll
+ 8009  head run.sh
+ 8010  unzip /home/shiny/lixiang-2022-03-03/0.zip /home/shiny/lixiang-2022-03-03/
+ 8011  unzip /home/shiny/lixiang-2022-03-03/0.zip -d /home/shiny/lixiang-2022-03-03/
+ 8012  sudo unzip /home/shiny/lixiang-2022-03-03/0.zip -d /home/shiny/lixiang-2022-03-03/
+ 8013  ll
+ 8014  rm -rf *
+ 8015  sudo rm -rf *
+ 8016  ll
+ 8017  ll results
+ 8018  head results/merge_ResumeCount.csv
+ 8019  ll
+ 8020  head results/merge_ResumeCount.csv
+ 8021* cd 
+ 8022* cd shiny-server/app/LeAFtool.test
+ 8023* l
+ 8024* ll
+ 8025* ll www
+ 8026  cd ..
+ 8027  ll
+ 8028  sudo rm -rf lixiang-2022-03-03
+ 8029  ll
+ 8030  ll lixiang-2022-03-03
+ 8031  sudo rm -rf lixiang-2022-03-03
+ 8032  ll
+ 8033  ll lixiang-2022-03-03
+ 8034  ll
+ 8035  zip lixiang-2022-03-03/* 
+ 8036  zip -r lixiang-2022-03-03/* ./
+ 8037  zip -r test.zip lixiang-2022-03-03/*
+ 8038  sudo zip -r test.zip lixiang-2022-03-03/*
+ 8039  ll
+ 8040  sudo rm -rf *
+ 8041  ll
+ 8042  ll lixiang-2022-03-03
+ 8043  ll
+ 8044  ll lixiang-2022-03-03
+ 8045  ll lixiang-2022-03-03/results
+ 8046  sudo rm -rf lixiang-2022-03-03
+ 8047* ll
+ 8048* cd ..
+ 8049* ll
+ 8050* mv LeAFtool.test/  LeAFtool
+ 8051* ll
+ 8052* ln -s /home/lixiang/shiny-server/app/LeAFtool/ /srv/shiny-server
+ 8053* mv /srv/shiny-server/LeAFtool /srv/shiny-server/LeAFtool_old
+ 8054* ln -s /home/lixiang/shiny-server/app/LeAFtool/ /srv/shiny-server
+ 8055* ll
+ 8056* ll /opt/shiny-server/app
+ 8057* cd
+ 8058* cd shiny-server
+ 8059* ll
+ 8060* cd shiny.log
+ 8061* ll
+ 8062* cat LeAFtool.test-shiny-20220303-180147-37657.log
+ 8063* sudo cat LeAFtool.test-shiny-20220303-180147-37657.log
+ 8064* sudo cat 18:57 LeAFtool-shiny-20220303-185545-37841.log
+ 8065* ll
+ 8066* sudo rm *
+ 8067* ll
+ 8068  cd
+ 8069  cd shiny-server
+ 8070  ll
+ 8071  cd aoo
+ 8072  cd app
+ 8073  ll
+ 8074  cd LeAFtool
+ 8075  ll
+ 8076  cd
+ 8077  cd /home/shiny
+ 8078  ll
+ 8079  sudo rm -rf test-2022-03-03
+ 8080  ll
+ 8081  sudo rm -rf lixiang-2022-03-03
+ 8082* ll
+ 8083* sudo cat LeAFtool-shiny-20220303-185954-46273.log
+ 8084  ll
+ 8085  sudo systemctl restart shiny-server.service
+ 8086  ll
+ 8087  ll minmin-2022-03-03
+ 8088* ll
+ 8089* sudo cat LeAFtool-shiny-20220303-190748-46707.log
+ 8090  ll
+ 8091  ll llllllll-2022-03-03
+ 8092* ll
+ 8093* sudo cat LeAFtool-shiny-20220303-191332-41249.log
+ 8094* sudo systemctl restart shiny-server.service
+ 8095* cd /etc/nginx
+ 8096* ll
+ 8097* vi nginx.conf
+ 8098* sudo vi nginx.conf
+ 8099* sudo nginx -s reload
+ 8100* sudo vi nginx.conf
+ 8101* sudo nginx -s reload
+ 8102* head nginx.conf
+ 8103* cd modules-enabled
+ 8104* ll
+ 8105* cd ..
+ 8106* ll
+ 8107* cat nginx.conf
+ 8108* sudo vi nginx.conf
+ 8109* sudo nginx -s reload
+ 8110  ll
+ 8111  sudo rm -rf *
+ 8112  ll
+ 8113  cd
+ 8114  ll
+ 8115  cd temp_file
+ 8116  scp -P 27450 root@138.128.207.183:/root/downlaod/gatk-4.2.5.0.zip ./
+ 8117  scp -P 27450 root@138.128.207.183:/root/download/gatk-4.2.5.0.zip ./
+ 8118  cat /home/lixiang/.ssh/id_rsa.pub
+ 8119  ll
+ 8120  rm -rf *
+ 8121  ll
+ 8122  scp -P 27450 root@138.128.207.183:/root/download/gatk-4.2.5.0.zip ./
+ 8123  cd /opt/software
+ 8124  cd
+ 8125  cd /
+ 8126  ll
+ 8127  cd opt/software
+ 8128  ll
+ 8129  sudo rm wget-log
+ 8130  sudo mkdir gatl
+ 8131  sudo rm -rf gatl
+ 8132  sudo mkdir gatk
+ 8133  cd gatk
+ 8134  sudo cp /home/lixiang/temp_file/gatk-4.2.5.0.zip ./
+ 8135  ll
+ 8136  sudo gunzip gatk-4.2.5.0.zip
+ 8137  sudo unzip gatk-4.2.5.0.zip -d ./
+ 8138  ll
+ 8139  sudo mv gatk-4.2.5.0/* ./
+ 8140  ll
+ 8141  sudo rm -rf gatk-4.2.5.0
+ 8142  ll
+ 8143  gatk -h
+ 8144  /opt/software/gatk/gatk -h
+ 8145  sudo ln -s /opt/software/gatk/gatk /usr/bin
+ 8146  ll
+ 8147  cd
+ 8148  ll
+ 8149  gatk -h
+ 8150  cd temp_file
+ 8151  ll
+ 8152  unzip exemple.zip
+ 8153  ll
+ 8154  rm exemple.zip
+ 8155  em gatk-4.2.5.0.zip
+ 8156  rm gatk-4.2.5.0.zip
+ 8157  ll
+ 8158  tree
+ 8159  ll
+ 8160  cd learning
+ 8161  ll
+ 8162  cd background
+ 8163  ll
+ 8164  rm pythonScriptArgs.py
+ 8165  cd ..
+ 8166  ll
+ 8167  tree
+ 8168  cd
+ 8169  cd project/33PanGenomeWRKYFamily
+ 8170  ll
+ 8171  cd results
+ 8172  cd ..
+ 8173  cat README.md
+ 8174  cd results/step4_seq_related
+ 8175  ll
+ 8176  cd ..
+ 8177  ll
+ 8178  cd step3_planttfdb_rebuild_and_research
+ 8179  ll
+ 8180  history | cat | ss
+ 8181  cd
+ 8182  ll
+ 8183  pwd
+ 8184  cd project
+ 8185  ll
+ 8186  cp pangenome.wrky/data/pangenome/pep.fa ../temp_file
+ 8187  cd
+ 8188  cd temp_file
+ 8189  ll
+ 8190  cd
+ 8191  cd project/33PanGenomeWRKYFamily
+ 8192  ll
+ 8193  cd code
+ 8194  ll
+ 8195  cat * > all.code
+ 8196  ll
+ 8197  ll llllllll-2022-03-03
+ 8198  ll
+ 8199  cat \* > all.code
+ 8200  cat *.* > all.code
+ 8201  cat *.* > allcode
+ 8202  lll
+ 8203  ll
+ 8204  cat allcode | ss
+ 8205  grep "wrky.txt" allcode
+ 8206  grep "wrky" allcode

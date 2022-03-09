@@ -1,0 +1,5978 @@
+rm(list = ls())
+
+df_seq = pac4xiang::fasta2df("results/step4_seq_related/extracted.pep.fa") %>% 
+  dplyr::mutate(id = stringr::str_replace(id, ">","")) 
+
+for (i in 1:nrow(df_seq)) {
+  df_seq$id[i] = stringr::str_split(df_seq$id[i]," ")[[1]][1]
+}
+
+df_seq %>% 
+  pac4xiang::df2fasta() %>% 
+  data.table::fwrite(file = "results/step4_seq_related/extracted.pep.new.id.fa", col.names = FALSE, row.names = FALSE)
+
+for (i in seq(1,3500,500)) {
+  if (i == 3001) {
+    df_sub = df_seq[3001:3257,] %>% 
+      pac4xiang::df2fasta()
+    filename = "results/step4_seq_related/seq_500_in_one_file/3001-3257.fa"
+    data.table::fwrite(df_sub, file = filename, col.names = FALSE, row.names = FALSE)
+  }else{
+    df_sub = df_seq[i:(i+499),] %>% 
+      pac4xiang::df2fasta()
+    filename = paste0("results/step4_seq_related/seq_500_in_one_file/",i,"-",i+499,".fa")
+    data.table::fwrite(df_sub, file = filename, col.names = FALSE, row.names = FALSE)
+  }
+}
+rm(list = ls())
+
+file_dir = dir("/opt/publicdata/refgenome/rice/33pan_genone/")
+
+for (i in file_dir) {
+  if (stringr::str_sub(i,1,3) == "all") {
+    next
+  }else{
+    file_dir_2 = dir(paste0("/opt/publicdata/refgenome/rice/33pan_genone/",i))
+    for (j in file_dir_2) {
+      if (stringr::str_sub(j, nchar(j)-2, nchar(j)) == "gff") {
+        print(j)
+        
+        data.table::fread(paste0("/opt/publicdata/refgenome/rice/33pan_genone/",i,"/",j)) %>% 
+          dplyr::mutate(V1 = paste0(V1, "_",i)) %>% 
+          data.table::fwrite(file = paste0("data/gff/",i, ".gff"), sep = "\t",
+                             row.names = FALSE, col.names = FALSE, quote = FALSE)
+      }else{
+        next
+      }
+    }
+  }
+}
+
+
+for (i in file_dir) {
+  if (stringr::str_sub(i,1,3) == "all") {
+    next
+  }else{
+    file_dir_2 = dir(paste0("/opt/publicdata/refgenome/rice/33pan_genone/",i))
+    for (j in file_dir_2) {
+      if (stringr::str_sub(j, nchar(j)-1, nchar(j)) == "fa") {
+        print(j)
+      }else{
+        next
+      }
+    }
+  }
+}
+rm(list = ls())
+
+library(tidyverse)
+
+df_id = data.table::fread("results/step1_get_id/id2species.txt", header = TRUE)
+
+df_pep = data.table::fread("results/step4_seq_related/pep.mw.txt", header = TRUE) %>% 
+  dplyr::rename(geneid = `#ID`) %>% 
+  merge(df_id, by = "geneid", all.x = TRUE) %>% 
+  dplyr::group_by(species) %>% 
+  dplyr::mutate(n = n()) %>% 
+  dplyr::ungroup() %>% 
+  dplyr::arrange(n)
+
+# 计数
+df_pep %>% 
+  dplyr::select(length, species) %>% 
+  dplyr::group_by(species) %>% 
+  dplyr::summarise(n = n()) %>% 
+  as.data.frame() %>% 
+  print()
+  
+# 常规统计
+
+# 长度anova
+df_pep %>% 
+  dplyr::select(length, species) -> df.temp
+
+aov(length ~ species, data = df.temp) %>% summary()
+
+df_pep %>% 
+  dplyr::select(length, species) %>% 
+  dplyr::group_by(species) %>% 
+  summarise(min = min(length),
+            max = max(length),
+            mean = mean(length),
+            median = median(length),
+            sd = sd(length),
+            q1 = quantile(length, 0.25),
+            q3 = quantile(length, 0.75)) -> df.summary.length
+
+df.summary.length %>% 
+  reshape2::melt(id.vars = 1) %>% 
+  ggplot(aes(variable, value, fill = variable)) +
+  geom_boxplot() +
+  scale_fill_aaas() +
+  theme_bw() +
+  theme(axis.title.x = element_blank(),
+        legend.position = "none")
+
+
+
+
+
+#####
+
+df_pep %>% 
+  dplyr::select(`MW(Da)`, species) %>% 
+  dplyr::rename(length = `MW(Da)`) %>% 
+  dplyr::group_by(species) %>% 
+  summarise(min = min(length),
+            max = max(length),
+            mean = mean(length),
+            median = median(length),
+            sd = sd(length),
+            q1 = quantile(length, 0.25),
+            q3 = quantile(length, 0.75)) -> df.summary.mw
+df_pep %>% 
+  dplyr::select(pI, species) %>% 
+  dplyr::rename(length = pI) %>% 
+  dplyr::group_by(species) %>% 
+  summarise(min = min(length),
+            max = max(length),
+            mean = mean(length),
+            median = median(length),
+            sd = sd(length),
+            q1 = quantile(length, 0.25),
+            q3 = quantile(length, 0.75)) -> df.summary.pi
+
+library(openxlsx)
+names <- list('length' = df.summary.length, 'mw' = df.summary.mw, 'pi' = df.summary.pi)
+write.xlsx(names, file = 'results/step4_seq_related/summary.xlsx')
+
+
+
+df_pep$species = factor(df_pep$species, levels = unique(df_pep$species))
+
+# 基因蛋白长度
+df_pep %>% 
+  dplyr::select(length, species) %>% 
+  ggplot(aes(x = length, y = species),show.legend = FALSE) +
+  geom_boxplot(width = 0.6, outlier.size = 0.8) +
+  geom_vline(xintercept = mean(df_pep$length), linetype = "dashed", color = "red") +
+  scale_x_continuous(breaks = seq(100,1500,100)) +
+  labs(x = "Protein length", y = "Rice accession") +
+  theme_bw() +
+  theme(legend.position = "none",
+        axis.text = element_text(size = 12, color = "black"))
+
+export::graph2tif(file = "results/step4_seq_related/蛋白长度统计.tif",
+                  width = 10,
+                  height = 8,
+                  dpi = 500)
+# 基因蛋白长度
+df_pep %>% 
+  dplyr::select(pI, species) %>% 
+  ggplot(aes(x = pI, y = species),show.legend = FALSE) +
+  geom_boxplot(width = 0.6, outlier.size = 0.8) +
+  geom_vline(xintercept = mean(df_pep$pI), linetype = "dashed", color = "red") +
+  scale_x_continuous(breaks = seq(4,12,1)) +
+  labs(x = "Protein isoelectric point", y = "Rice accession") +
+  theme_bw() +
+  theme(legend.position = "none",
+        axis.text = element_text(size = 12, color = "black"))
+
+export::graph2tif(file = "results/step4_seq_related/蛋白分子等电点统计.tif",
+                  width = 10,
+                  height = 8,
+                  dpi = 500)
+rm(list = ls())
+
+
+df_all_id = data.table::fread("results/step2_hmm_search/unique.id.txt",header = FALSE)
+
+# NCBI
+df_ncbi = data.table::fread("results/step4_seq_related/seq_500_in_one_file/ncbi_cdd_search.txt", header = TRUE) %>% 
+  dplyr::filter(`Hit type` == "specific") %>% 
+  dplyr::group_by(Query) %>% 
+  dplyr::mutate(n = n()) %>% 
+  dplyr::ungroup()
+
+for (i in 1:nrow(df_ncbi)) {
+  df_ncbi$Query[i] = stringr::str_split(df_ncbi$Query[i],">")[[1]][2]
+}
+
+df_ncbi_1 = df_ncbi %>% 
+  dplyr::filter(`Short name` == "WRKY")
+
+df_ncbi_1 = df_ncbi_1[!duplicated(df_ncbi_1$Query),] %>% 
+  dplyr::select(1) %>% 
+  dplyr::mutate(isin = 1)
+colnames(df_ncbi_1)[1] = "V1"
+
+df_ncbi_2 = df_ncbi %>% 
+  dplyr::filter(`Short name` != "WRKY")
+
+df_ncbi_not = setdiff(df_all_id$V1, df_ncbi_1$Query) %>% 
+  as_data_frame()
+colnames(df_ncbi_not) = "V1"
+df_ncbi_not = df_ncbi_not %>% 
+  dplyr::mutate(isin = 0)
+
+df_ncbi_final = rbind(df_ncbi_1, df_ncbi_not)
+
+# SMART
+df_smart_not = data.table::fread("results/step4_seq_related/SMART_not_matched.txt", header = FALSE) %>% 
+  dplyr::mutate(isin = 0)
+
+df_smart_is = setdiff(df_all_id$V1, df_smart_not$V1) %>% 
+  as.data.frame()
+colnames(df_smart_is) = "V1"
+
+df_smart_is = df_smart_is %>% 
+  dplyr::mutate(isin = 1)
+
+df_smart = rbind(df_smart_is, df_smart_not)
+
+# Pfam
+
+
+# merge
+df_final = merge(df_ncbi_final, df_smart, by = "V1") %>% 
+  merge(df_pfam, by = "V1")
+colnames(df_final) = c("id","NCBI-CCD","SMART","Pfam")
+
+
+
+
+
+
+
+
+
+
+
+
+rm(list = ls())
+
+library(tidyverse)
+
+data.table::fread("rna-seq/blast/data/genome/MSU.IGDBv1.Allset.gff", header = FALSE) %>% 
+  dplyr::mutate(V9= paste0(V12,V13,";")) %>% 
+  dplyr::select(1:9) %>% 
+  data.table::fwrite(file = "rna-seq/data/genome/ir64.new.1.gtf", 
+                     row.names = FALSE, col.names = FALSE, sep = "\t")
+
+
+data.table::fread("rna-seq/blast/data/genome/MSU.IGDBv1.Allset.gff", header = FALSE) %>% 
+  dplyr::mutate(V1= paste0(V1,"_Nip")) %>% 
+  #dplyr::select(1:8) %>% 
+  data.table::fwrite(file = "rna-seq/blast/data/genome/Nip.gff", 
+                     row.names = FALSE, col.names = FALSE, sep = "\t")
+rm(list = ls())
+
+
+# 提取mRNA2geneID
+file_all <- dir("/opt/publicdata/refgenome/rice/33pan_genone/")
+
+for (i in file_all) {
+  if (stringr::str_sub(i, 1, 3) != "all") {
+    dir_file <- paste0("/opt/publicdata/refgenome/rice/33pan_genone/", i, "/")
+    dir_file <- dir(dir_file)
+    for (j in dir_file) {
+      if (stringr::str_sub(j, nchar(j) - 2, nchar(j)) == "gff") {
+        command <- paste0(
+          " ../../../code/mRNAid_to_geneid.pl ",
+          paste0("/opt/publicdata/refgenome/rice/33pan_genone/", i, "/", j, " "),
+          stringr::str_split(j, "\\.")[[1]][1], ".mRNA2geneID.txt"
+        )
+        system2(command = "perl", args = command)
+      }
+    }
+  }
+}
+
+# 查看提取的结果是否正常
+files = dir("./")
+
+for (i in files) {
+  print(stringr::str_split(i, "\\.")[[1]][1])
+  data.table::fread(i, nrows = 5, header = FALSE) %>% 
+    print()
+  print("----------------------------------------------------------------------")
+}
+
+
+# 确定没有问题后全部合并
+final_res = NULL
+
+files = dir("./")
+
+for (i in files) {
+  data.table::fread(i, header = TRUE) %>% 
+    rbind(final_res) -> final_res
+  print("----------------------------------------------------------------------")
+}
+
+data.table::fwrite(final_res, 
+                   file = "../../results/step1_get_id/mRNA2geneID.txt", 
+                   row.names = FALSE,
+                   col.names = TRUE,
+                   quote = FALSE,
+                   sep = "\t"
+                   )
+
+################################################################################
+# 提取geneID2mRNAid
+file_all <- dir("/opt/publicdata/refgenome/rice/33pan_genone/")
+
+for (i in file_all) {
+  if (stringr::str_sub(i, 1, 3) != "all") {
+    dir_file <- paste0("/opt/publicdata/refgenome/rice/33pan_genone/", i, "/")
+    dir_file <- dir(dir_file)
+    for (j in dir_file) {
+      if (stringr::str_sub(j, nchar(j) - 2, nchar(j)) == "gff") {
+        command <- paste0(
+          " ../../../code/geneid_to_mRNAid.pl ",
+          paste0("/opt/publicdata/refgenome/rice/33pan_genone/", i, "/", j, " "),
+          stringr::str_split(j, "\\.")[[1]][1], ".geneID2mRNAid.txt"
+        )
+        system2(command = "perl", args = command)
+      }
+    }
+  }
+}
+
+
+
+# 查看提取的结果是否正常
+files = dir("./")
+
+for (i in files) {
+  print(stringr::str_split(i, "\\.")[[1]][1])
+  data.table::fread(i, nrows = 5, header = FALSE) %>% 
+    #dplyr::select(1:6) %>% 
+    print()
+  print("----------------------------------------------------------------------")
+}
+
+
+
+# 确定没有问题后全部合并
+# 合并脚本
+head("../../../code/合并mRNA2geneID.py")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+rm(list = ls())
+
+library(tidyverse)
+
+df <- pac4xiang::fasta2df("results/step4_seq_related/new.id.ch.type.fa")
+
+# Paul J. Rushton
+df_new <- df %>%
+  dplyr::mutate(
+    #first_char = stringr::str_extract(seq, "\\w{1}(WRKYGQK)"),
+    first_char = stringr::str_extract(seq, "(WRKYGQK)"),
+    sec_char = stringr::str_extract(seq, "(RSYYKC)")
+  ) %>%
+  dplyr::mutate(sec_char = ifelse(is.na(sec_char),
+    stringr::str_extract(seq, "(RSYYKC)"),
+    sec_char
+  )) %>%
+  dplyr::mutate(sec_char = ifelse(is.na(sec_char),
+    stringr::str_extract(seq, "(RSYYRC)"),
+    sec_char
+  )) %>%
+  dplyr::mutate(sec_char = ifelse(is.na(sec_char),
+    stringr::str_extract(seq, "(RGYYKC)"),
+    sec_char
+  )) %>%
+  dplyr::mutate(sec_char = ifelse(is.na(sec_char),
+    stringr::str_extract(seq, "(RGYYRC)"),
+    sec_char
+  )) %>%
+  dplyr::mutate(sec_char = ifelse(is.na(sec_char),
+    stringr::str_extract(seq, "(RAYYRC)"),
+    sec_char
+  )) %>%
+  dplyr::mutate(sec_char = ifelse(is.na(sec_char),
+    stringr::str_extract(seq, "(RSYYRC)"),
+    sec_char
+  )) %>%
+  dplyr::mutate(sec_char = ifelse(is.na(sec_char),
+    stringr::str_extract(seq, "(CPVKKKV)"),
+    sec_char
+  )) %>%
+  dplyr::mutate(sec_char = ifelse(is.na(sec_char),
+    stringr::str_extract(seq, "(CPVRKQV)"),
+    sec_char
+  )) %>%
+  dplyr::mutate(
+    temp = paste0(first_char, sec_char),
+    subgroup = NA
+  ) %>%
+  dplyr::mutate(subgroup = ifelse(is.na(stringr::str_extract(temp, "(WRKYGQK)(RSYYKC)")),
+    subgroup,
+    "Ⅰ NT"
+  )) %>%
+  dplyr::mutate(subgroup = ifelse(is.na(stringr::str_extract(temp, "(WRKYGQK)(RSYYKC)")),
+    subgroup,
+    "I CT"
+  )) %>%
+  dplyr::mutate(subgroup = ifelse(is.na(stringr::str_extract(temp, "(WRKYGQK)(RSYYRC)")),
+    subgroup,
+    "Ⅱ c"
+  )) %>%
+  dplyr::mutate(subgroup = ifelse(is.na(stringr::str_extract(temp, "(WRKYGQK)(RGYYKC)")),
+    subgroup,
+    "Ⅱ d"
+  )) %>%
+  dplyr::mutate(subgroup = ifelse(is.na(stringr::str_extract(temp, "(WRKYGQK)(RGYYRC)")),
+    subgroup,
+    "Ⅱ e"
+  )) %>%
+  dplyr::mutate(subgroup = ifelse(is.na(stringr::str_extract(temp, "(WRKYGQK)(RAYYRC)")),
+    subgroup,
+    "Ⅲ a"
+  )) %>%
+  dplyr::mutate(subgroup = ifelse(is.na(stringr::str_extract(temp, "(WRKYGQK)(RSYYRC)")),
+    subgroup,
+    "Ⅲ b"
+  )) %>%
+  dplyr::mutate(subgroup = ifelse(is.na(stringr::str_extract(temp, "(WRKYGQK)(CPVKKKV)")),
+    subgroup,
+    "Ⅱ a"
+  )) %>%
+  dplyr::mutate(subgroup = ifelse(is.na(stringr::str_extract(temp, "(WRKYGQK)(CPVRKQV)")),
+    subgroup,
+    "Ⅱ b"
+  )) %>% 
+  dplyr::mutate(subgroup = ifelse(is.na(subgroup),"other",subgroup))
+
+data.table::fwrite(df_new, file = "results/step4_seq_related/seq_subgroup_chenxujun.txt", row.names = FALSE)
+
+# Paul J. Rushton
+df_new <- df %>%
+  dplyr::mutate(
+    #first_char = stringr::str_extract(seq, "\\w{1}(WRKYGQK)"),
+    first_char = stringr::str_extract(seq, "(WRKY)"),
+    sec_char = stringr::str_extract(seq, "(C)\\w{4,7}(C)"),
+    third_char = stringr::str_extract(seq, "(H)\\w{1}(H)")
+  ) %>% 
+  dplyr::mutate(third_char = ifelse(is.na(third_char),
+                                    stringr::str_extract(seq, "(H)\\w{1}(C)"),
+                                    third_char
+                                    )) %>% 
+  dplyr::mutate(lab1 = paste0(stringr::str_sub(sec_char,1,1),
+                              stringr::str_sub(sec_char,nchar(sec_char),nchar(sec_char))),
+                lab2 = paste0(stringr::str_sub(third_char,1,1),
+                              stringr::str_sub(third_char,nchar(third_char),nchar(third_char)))
+                ) %>% 
+  dplyr::mutate(temp = paste0(lab1, lab2)) %>% 
+  dplyr::mutate(subgroup = case_when(temp == "CCHH" ~ "C2H2",
+                                  temp == "CCHC" ~ "C2HC",
+                                  temp == "CCNANA" ~ "C2-",
+                                  temp == "NANAHC" ~ "-HC",
+                                  temp == "NANAHH" ~ "-H2",
+                                  TRUE ~ "-"))
+
+data.table::fwrite(df_new, file = "results/step4_seq_related/seq_subgroup_CH_type.txt", row.names = FALSE)
+
+
+rm(list = ls())
+
+library(GenomicFeatures)
+library(data.table)
+library(dplyr)
+
+df_all <- data.table::fread("rna-seq/counts/SRR9969498.counts.txt", header = TRUE)
+colnames(df_all) <- c("geneid", "SRR9969498")
+
+file_dir <- dir("rna-seq/counts/")
+
+for (i in file_dir) {
+  len <- length(stringr::str_split(i, "\\.")[[1]])
+  if (len == 3) {
+    sample <- stringr::str_split(i, "\\.")[[1]][1]
+    df_temp <- data.table::fread(paste0("rna-seq/counts/", i), header = TRUE)
+    colnames(df_temp) <- c("geneid", sample)
+
+    if (sample == "SRR9969498") {
+      next
+    } else {
+      df_all <- merge(df_all, df_temp, by = "geneid")
+    }
+  }
+}
+
+data.table::fwrite(df_all,
+  file = "/home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/counts.txt",
+  row.names = FALSE, quote = FALSE
+)
+
+# counts转换成tpm和FPKM
+# txdb <- makeTxDbFromGFF("/home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/data/genome/ir64.gff",format="auto")
+# xons_gene <- exonsBy(txdb, by = "gene")
+# exons_gene_lens <- lapply(exons_gene,function(x){sum(width(reduce(x)))})
+# length=t(as.data.frame(exons_gene_lens))
+# write.table(length,'/home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/data/genome/ir64.gene.length.txt',col.names=F,row.names=T,quote=F,sep='\t')
+
+gene.len <- fread("/home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/data/genome/ir64.gene.length.txt",
+  header = FALSE
+) %>%
+  dplyr::rename(geneid = V1, length = V2)
+
+df.all <- merge(df_all, gene.len, by = "geneid")
+
+kb <- df.all$length / 1000
+
+rpk <- df.all[, 2:(ncol(df.all) - 1)] / kb
+rownames(rpk) <- df.all$gene
+
+# TPM
+tpm <- t(t(rpk) / colSums(rpk) * 1000000) %>% as.data.frame()
+rownames(tpm) <- df.all$gene
+data.table::fwrite(tpm, file = "/home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/TPM.csv", quote = F, row.names = TRUE)
+
+# FPKM
+fpkm <- t(t(rpk) / colSums(df_all[, 2:ncol(df_all)]) * 10^6) %>% as.data.frame()
+rownames(fpkm) <- df.all$gene
+data.table::fwrite(fpkm, file = "/home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/FPKM.csv", quote = F, row.names = TRUE)
+
+
+
+
+
+
+
+
+import os
+
+print(os.listdir())
+print(os.getcwd())
+
+f = open("../../../results/step1_get_id/geneid2mrnaid.txt","w")
+
+for i in os.listdir():
+  if i == ".Rhistory":
+    next
+  else:
+    f_open = open(i, "r")
+    f_read = f_open.readlines()
+    for line in f_read:
+      f.write(line)
+      
+f.close()
+
+rm(list = ls())
+
+library(ggtree)
+
+df_tree = ggtree::read.tree("results/step4_seq_related/new.id.ch.type.aligned.tree.nwk")
+
+
+# 导入序列亚群分组
+
+# CH类型分组
+df_seq_group = data.table::fread("results/step4_seq_related/seq_subgroup_CH_type.txt", header = TRUE) %>% 
+  dplyr::mutate(ID = id, group = subgroup) %>% 
+  dplyr::mutate(ID = stringr::str_replace(id,">","")) %>% 
+  dplyr::select(ID, group)
+
+# 陈旭君等分组
+df_seq_subgroup = data.table::fread("results/step4_seq_related/seq_subgroup_chenxujun.txt", header = TRUE) %>% 
+  dplyr::select(id, subgroup) %>% 
+  dplyr::rename(ID = id) %>% 
+  dplyr::mutate(ID = stringr::str_sub(ID,2, nchar(ID)))
+
+# NCBI-CDD pvalue
+df_ncbi = data.table::fread("results/step4_seq_related/ncbi_cdd_search.txt", header = TRUE)
+
+for (i in 1:nrow(df_ncbi)) {
+  df_ncbi$Query[i] = stringr::str_split(df_ncbi$Query[i],">")[[1]][2]
+}
+
+df_ncbi_selected = df_ncbi %>% 
+  dplyr::filter(Query %in% df_seq_group$ID) %>% 
+  #dplyr::filter(`Short name` == "WRKY") %>% 
+  dplyr::filter(!duplicated(Query)) %>% 
+  dplyr::rename(ID = Query) %>% 
+  merge(df_seq_group, by = "ID")
+
+# 处理第一个结构域序列
+df_domain_1 = pac4xiang::fasta2df("results/step2_hmm_search/first.domain.fa") %>% 
+  dplyr::mutate(id = stringr::str_replace(id, ">", ""))
+
+for (i in 1:nrow(df_domain_1)) {
+  df_domain_1$id[i] = stringr::str_split(df_domain_1$id[i]," ")[[1]][1]
+}
+
+df_domain_1 %>% 
+  dplyr::filter(id %in% df_seq_group$ID) %>% 
+  pac4xiang::df2fasta() %>% 
+  data.table::fwrite(file = "results/step4_seq_related/first_domain.fa",
+                     col.names = FALSE, row.names = FALSE, quote = FALSE)
+  
+
+
+
+# 绘制进化树
+p = ggtree(df_tree, layout = "fan", open.angle = 0, branch.length = "none")
+p
+
+p1 = p %<+% df_seq_subgroup +
+  geom_tippoint(aes(color = subgroup)) +
+  scale_color_igv(name = "Subgroup")
+p1
+
+
+p2 = p1 %<+%  df_seq_group + 
+  geom_fruit(geom = geom_tile,
+             mapping = aes(fill = group),
+             offset = 0.04, size = 0.02, width = 1.5
+             ) +
+  scale_fill_aaas(name = "CH Type")
+
+p2
+
+export::graph2tif(file = "results/step4_seq_related/phylo.tree.tif",
+                  width = 10, height = 8, dpi = 500)
+
+# 匹配序列
+p = ggtree(df_tree, layout = "fan", open.angle = 0)
+p
+
+p1 = p %<+% df_seq_subgroup +
+  geom_tippoint(aes(color = subgroup)) +
+  scale_color_igv(name = "Subgroup")
+p1
+
+
+p2 = p1 %<+%  df_seq_group + 
+  geom_fruit(geom = geom_tile,
+             mapping = aes(fill = group),
+             offset = 0.04, size = 0.02, width = 0.3
+  ) +
+  scale_fill_aaas(name = "CH Type")
+
+p2
+
+p3 = p2 +  layout_rectangular() +
+  theme(legend.position = c(0.15,0.6),
+        legend.text=element_text(size=13),
+        legend.title = element_text(size = 15))
+p3
+
+export::graph2tif(file = "results/step4_seq_related/phylo.tree.水平.tif",
+                  width = 10, height = 8, dpi = 500)
+
+
+
+
+
+rm(list = ls())
+
+all_spe = NULL
+
+df = data.table::fread("results/step2_hmm_search/unique.id.new.wrky.txt", header = FALSE) %>% 
+  dplyr::mutate(species = "")
+
+spe = dir("data/geneIDandmRNAid/geneID2mRNAid/")
+
+species = c()
+
+for (i in spe) {
+  temp = stringr::str_split(i,"\\.")[[1]][1]
+  species = c(species, temp)
+}
+
+for (i in 1:nrow(df)) {
+  if (stringr::str_sub(df$V1[i],1,3) == "LOC") {
+    df$species[i] = "Nipponbare"
+  }else{
+    for (j in species) {
+      if (grepl(j,df$V1[i])) {
+        df$species[i] = j
+      }
+    }
+  }
+}
+
+colnames(df) = c("geneid","species")
+
+data.table::fwrite(df, file = "results/step1_get_id/id2species.txt",row.names = FALSE, col.names = TRUE)
+
+
+
+
+# 染色体分布偏好性
+table(df$species) %>% 
+  as.data.frame() %>% 
+  dplyr::mutate(mean = mean(Freq)) %>% 
+  dplyr::arrange(Freq) -> df.spe
+
+levels = unique(df.spe$Var1)
+
+
+df_id = data.table::fread("results/step1_get_id/mRNA2geneID.txt", header = FALSE)
+
+df_chr = merge(df, df_id, by.x = "V1", by.y = "V1", all.x = TRUE) %>% 
+  dplyr::group_by(species, V3) %>% 
+  dplyr::mutate(n = n()) %>% 
+  dplyr::ungroup() %>% 
+  dplyr::filter(V3 != "Contig109END")
+df_chr$V3 = factor(df_chr$V3, levels = c(paste0("Chr",1:12),"Contig109END"))
+
+ggplot(df_chr, aes(x = n, y = species, fill = V3)) +
+  geom_bar(stat = "identity", width = 0.8, position="fill") +
+  #geom_vline(xintercept = 105, color = "white") +
+  scale_fill_igv() +
+  scale_x_continuous(expand = c(0,0), label = scales::percent_format(scale = 100)) +
+  scale_y_discrete(limit = levels) +
+  labs(x = "Percent", y = "Rice Accessions",
+       title = "Number of genes in rice accessions",
+       fill = "Chromosome") +
+  theme_prism() +
+  theme(legend.title = element_text("Chromosome"))
+
+export::graph2tif(file = "results/step4_seq_related/wrky基因数量统计_染色体.tif",
+                  width = 8,
+                  height = 8,
+                  dpi = 500)
+
+
+
+
+
+
+# 导入序列亚分组
+library(ggsci)
+library(ggprism)
+
+df_subgroup = data.table::fread("results/step4_seq_related/seq_subgroup_chenxujun.txt", header = TRUE) %>% 
+  dplyr::mutate(id = stringr::str_replace(id,">",""))
+for (i in 1:nrow(df_subgroup)) {
+  df_subgroup$id[i] = stringr::str_split(df_subgroup$id[i]," ")[[1]][1]
+}
+df_subgroup_plot = merge(df_subgroup, df, by.x = "id", by.y = "V1") %>% 
+  dplyr::mutate(temp2 = paste0(species, subgroup)) %>% 
+  dplyr::mutate(temp2 = stringr::str_replace_all(temp2," ","")) %>% 
+  dplyr::group_by(temp2) %>% 
+  dplyr::mutate(n = n(),
+                sum = sum(n)) %>% 
+  dplyr::ungroup() %>% 
+  dplyr::select(species, subgroup, n, temp2, sum)
+  
+df_subgroup_plot = df_subgroup_plot[!duplicated(df_subgroup_plot$temp2),] %>% 
+  dplyr::arrange(sum)
+df_subgroup_plot$species = factor(df_subgroup_plot$species, levels = unique(df_subgroup_plot$species))
+
+table(df$species) %>% 
+  as.data.frame() %>% 
+  dplyr::mutate(mean = mean(Freq)) %>% 
+  dplyr::arrange(Freq) -> df.spe
+
+levels = unique(df.spe$Var1)
+
+ggplot(df_subgroup_plot, aes(x = n, y = species, fill = subgroup)) +
+  geom_bar(stat = "identity", width = 0.8) +
+  geom_vline(xintercept = 105, color = "white") +
+  scale_fill_igv() +
+  scale_x_continuous(expand = c(0,0)) +
+  scale_y_discrete(limit = levels) +
+  labs(x = "Number of Genes", y = "Rice Accessions",
+       fill = "Subgroup",
+       title = "Number of genes in rice accessions") +
+  theme_prism() 
+
+export::graph2tif(file = "results/step4_seq_related/wrky基因数量统计_subgroup.tif",
+                  width = 8,
+                  height = 8,
+                  dpi = 500)
+
+
+# CH分组
+# 导入序列亚分组
+library(ggsci)
+library(ggprism)
+
+df_subgroup = data.table::fread("results/step4_seq_related/seq_subgroup_CH_type.txt", header = TRUE) %>% 
+  dplyr::mutate(id = stringr::str_replace(id,">",""))
+for (i in 1:nrow(df_subgroup)) {
+  df_subgroup$id[i] = stringr::str_split(df_subgroup$id[i]," ")[[1]][1]
+}
+df_subgroup_plot = merge(df_subgroup, df, by.x = "id", by.y = "V1") %>% 
+  dplyr::mutate(temp2 = paste0(species, subgroup)) %>% 
+  dplyr::mutate(temp2 = stringr::str_replace_all(temp2," ","")) %>% 
+  dplyr::group_by(temp2) %>% 
+  dplyr::mutate(n = n(),
+                sum = sum(n)) %>% 
+  dplyr::ungroup() %>% 
+  dplyr::select(species, subgroup, n, temp2, sum)
+
+df_subgroup_plot = df_subgroup_plot[!duplicated(df_subgroup_plot$temp2),] %>% 
+  dplyr::arrange(sum)
+df_subgroup_plot$species = factor(df_subgroup_plot$species, levels = unique(df_subgroup_plot$species))
+
+table(df$species) %>% 
+  as.data.frame() %>% 
+  dplyr::mutate(mean = mean(Freq)) %>% 
+  dplyr::arrange(Freq) -> df.spe
+
+levels = unique(df.spe$Var1)
+
+ggplot(df_subgroup_plot, aes(x = n, y = species, fill = subgroup)) +
+  geom_bar(stat = "identity", width = 0.8) +
+  geom_vline(xintercept = 105, color = "white") +
+  scale_fill_igv() +
+  scale_x_continuous(expand = c(0,0)) +
+  scale_y_discrete(limit = levels) +
+  labs(x = "Number of Genes", y = "Rice Accessions",
+       fill = "Subgroup",
+       title = "Number of genes in rice accessions") +
+  theme_prism() 
+
+export::graph2tif(file = "results/step4_seq_related/wrky基因数量统计_subgroup_CH.tif",
+                  width = 8,
+                  height = 8,
+                  dpi = 500)
+
+
+
+# 统计每个species的数量
+library(ggprism)
+library(ggplot2)
+
+table(df$species) %>% 
+  as.data.frame() %>% 
+  dplyr::mutate(mean = mean(Freq)) %>% 
+  dplyr::arrange(Freq) -> df.spe
+  
+df.spe$Var1 = factor(df.spe$Var1, levels = unique(df.spe$Var1))
+
+all_spe = df.spe %>% 
+  dplyr::rename(pfam = Freq) %>% 
+  dplyr::select(1:2)
+
+ggplot(df.spe) +
+  geom_bar(aes(y = Var1, x = Freq), stat = "identity", width = 0.8) +
+  geom_text(aes(x = Freq + 2, y = Var1, label = Freq)) +
+  geom_vline(xintercept = 97, linetype = "dashed", color = "red") +
+  geom_vline(xintercept = 110, color = "white") +
+  scale_x_continuous(expand = c(0,0)) +
+  labs(x = "Number of Genes", y = "Rice Accessions", title = "Number of genes in rice accessions") +
+  theme_prism()
+
+export::graph2tif(file = "results/step2_hmm_search/wrky基因数量统计_pfam.tif",
+                  width = 8,
+                  height = 8,
+                  dpi = 500)
+
+# planttdb indica
+rm(list = ls())
+
+df = data.table::fread("results/step3_planttfdb_rebuild_and_research/planttfdb.indica.unique.id.txt", header = FALSE) %>% 
+  dplyr::mutate(species = "")
+
+spe = dir("data/geneIDandmRNAid/geneID2mRNAid/")
+
+species = c()
+
+for (i in spe) {
+  temp = stringr::str_split(i,"\\.")[[1]][1]
+  species = c(species, temp)
+}
+
+for (i in 1:nrow(df)) {
+  if (stringr::str_sub(df$V1[i],1,3) == "LOC") {
+    df$species[i] = "Nipponbare"
+  }else{
+    for (j in species) {
+      if (grepl(j,df$V1[i])) {
+        df$species[i] = j
+      }
+    }
+  }
+}
+
+
+# 统计每个species的数量
+
+table(df$species) %>% 
+  as.data.frame() %>% 
+  dplyr::mutate(mean = mean(Freq)) %>% 
+  dplyr::arrange(Freq) -> df.spe
+
+df.spe$Var1 = factor(df.spe$Var1, levels = unique(df.spe$Var1))
+
+
+all_spe = merge(all_spe, df.spe[,c(1,2)], by = "Var1")
+colnames(all_spe)[3] = "PlantTFDB_indica"
+
+ggplot(df.spe) +
+  geom_bar(aes(y = Var1, x = Freq), stat = "identity", width = 0.8) +
+  geom_text(aes(x = Freq + 3, y = Var1, label = Freq)) +
+  geom_vline(xintercept = 97, linetype = "dashed") +
+  geom_vline(xintercept = 110, color = "white") +
+  scale_x_continuous(expand = c(0,0)) +
+  labs(x = "Number of Genes", y = "Rice Accessions", title = "Number of genes in rice accessions (PlantTFDB indica)") +
+  theme_prism()
+
+export::graph2tif(file = "results/step2_hmm_search/wrky基因数量统计_PlantTFDB indica.tif",
+                  width = 8,
+                  height = 8,
+                  dpi = 500)
+
+
+
+
+# planttdb japonica
+rm(list = ls())
+
+df = data.table::fread("results/step3_planttfdb_rebuild_and_research/planttfdb.japonica.unique.id.txt", header = FALSE) %>% 
+  dplyr::mutate(species = "")
+
+spe = dir("data/geneIDandmRNAid/geneID2mRNAid/")
+
+species = c()
+
+for (i in spe) {
+  temp = stringr::str_split(i,"\\.")[[1]][1]
+  species = c(species, temp)
+}
+
+for (i in 1:nrow(df)) {
+  if (stringr::str_sub(df$V1[i],1,3) == "LOC") {
+    df$species[i] = "Nipponbare"
+  }else{
+    for (j in species) {
+      if (grepl(j,df$V1[i])) {
+        df$species[i] = j
+      }
+    }
+  }
+}
+
+
+# 统计每个species的数量
+
+table(df$species) %>% 
+  as.data.frame() %>% 
+  dplyr::mutate(mean = mean(Freq)) %>% 
+  dplyr::arrange(Freq) -> df.spe
+
+df.spe$Var1 = factor(df.spe$Var1, levels = unique(df.spe$Var1))
+
+all_spe = merge(all_spe, df.spe[,c(1,2)], by = "Var1")
+colnames(all_spe)[4] = "PlantTFDB_japonica"
+
+ggplot(df.spe) +
+  geom_bar(aes(y = Var1, x = Freq), stat = "identity", width = 0.8) +
+  geom_text(aes(x = Freq + 3, y = Var1, label = Freq)) +
+  geom_vline(xintercept = 97, linetype = "dashed") +
+  geom_vline(xintercept = 110, color = "white") +
+  scale_x_continuous(expand = c(0,0)) +
+  labs(x = "Number of Genes", y = "Rice Accessions", title = "Number of genes in rice accessions (PlantTFDB japonica)") +
+  theme_prism()
+
+export::graph2tif(file = "results/step2_hmm_search/wrky基因数量统计_PlantTFDB japonica.tif",
+                  width = 8,
+                  height = 8,
+                  dpi = 500)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+rm(list = ls())
+
+library(ggplot2)
+library(ggsci)
+
+df1 = data.table::fread("results/LOC_Os02g08440表达量-南方科技大学网站/LOC_OS02G08440_biotic_expression_levels.csv", header = TRUE)
+
+ggplot(df1, aes(x = biotic, y = LOC_OS02G08440, fill = biotic)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.1) +
+  coord_flip() +
+  scale_fill_igv() +
+  scale_y_continuous(breaks = seq(0,300,50)) +
+  labs(title = "Expression Level under Biotic Stress") +
+  theme_bw() +
+  theme(legend.position = "none",
+        plot.title = element_text(hjust = 0.5),
+        axis.title = element_blank(),
+        axis.text = element_text(colour = "black", size = 12)) -> p1
+p1
+
+# 非生物胁迫
+df2 = data.table::fread("results/LOC_Os02g08440表达量-南方科技大学网站/LOC_OS02G08440_abiotic_expression_levels.csv" ,header = TRUE)
+
+ggplot(df2, aes(x = abiotic, y = LOC_OS02G08440, fill = abiotic)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.1) +
+  coord_flip() +
+  scale_fill_igv() +
+  scale_y_continuous(breaks = seq(0,400,50)) +
+  labs(title = "Expression Level under Abiotic Stress") +
+  theme_bw() +
+  theme(legend.position = "none",
+        plot.title = element_text(hjust = 0.5),
+        axis.title = element_blank(),
+        axis.text = element_text(colour = "black", size = 12)) -> p2
+p2
+
+
+# 不同部位
+df3 = data.table::fread("results/LOC_Os02g08440表达量-南方科技大学网站/LOC_OS02G08440_tissue_expression.csv", header = TRUE)
+
+ggplot(df3, aes(x = `Tissue/Satge`, y = LOC_OS02G08440, fill = `Tissue/Satge`)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.1) +
+  coord_flip() +
+  scale_fill_igv() +
+  scale_y_continuous(breaks = seq(0,400,50)) +
+  labs(title = "Expression Level at Different Tissue") +
+  theme_bw() +
+  theme(legend.position = "none",
+        plot.title = element_text(hjust = 0.5),
+        axis.title = element_blank(),
+        axis.text = element_text(colour = "black", size = 12)) -> p3
+p3
+
+
+# 不同部位
+df4 = data.table::fread("results/LOC_Os02g08440表达量-南方科技大学网站/LOC_OS02G08440_tissue_expression (1).csv", header = TRUE)
+ggplot(df4, aes(x = `Tissue/Satge`, y = LOC_OS02G08440, fill = `Tissue/Satge`)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.1) +
+  coord_flip() +
+  scale_fill_igv() +
+  scale_y_continuous(breaks = seq(0,300,50)) +
+  labs(title = "Expression Level at Different Development Stage") +
+  theme_bw() +
+  theme(legend.position = "none",
+        plot.title = element_text(hjust = 0.5),
+        axis.title = element_blank(),
+        axis.text = element_text(colour = "black", size = 12)) -> p4
+p4
+
+# combian
+p1 + p2 + p3 + p4 + patchwork::plot_layout(ncol = 2)
+
+export::graph2tif(file = "results/各种表达量.tif",
+                  width = 20, height = 15, dpi = 500)
+
+cowplot::plot_grid(p1, p2, p3, p4,
+                   labels = LETTERS[1:4],
+                   label_size = 25,
+                   ncol = 2)
+export::graph2tif(file = "results/各种表达量.tif",
+                  width = 20, height = 15, dpi = 500)
+
+
+
+# 全部表达量
+df_id = data.table::fread("rna-seq/stress/results/DEGs.wrky.txt", header = TRUE) %>% 
+  dplyr::select(row) %>% 
+  dplyr::distinct_all() %>% 
+  dplyr::mutate(row = stringr::str_replace(row, "Os","OS"),
+                row = stringr::str_replace(row, "g","G"))
+
+group = data.table::fread("rna-seq/group.csv", header = TRUE) %>% 
+  dplyr::filter(Cultivar == "Nipponbare") %>% 
+  dplyr::select(Sample) %>% 
+  dplyr::distinct_all()
+
+df = data.table::fread("rna-seq/rice_fpkmAllData.csv", header = TRUE) %>% 
+  dplyr::filter(Sample %in% df_id$row) %>% 
+  tibble::column_to_rownames(var = "Sample") %>% 
+  dplyr::select(group$Sample) %>% 
+  pheatmap:::scale_rows()
+
+df[df>3.17] = 3.17
+
+
+pheatmap::pheatmap(df,
+                   show_rownames = FALSE,
+                   show_colnames = FALSE,
+                   color=colorRampPalette(c("navy", "white", "red"))(50))
+
+export::graph2tif(file = "rna-seq/pprd.wrky.all.tif",
+                  width = 10, height = 10, dpi = 500)
+
+
+# cor 
+df = data.table::fread("rna-seq/rice_fpkmAllData.csv", header = TRUE) %>% 
+  dplyr::filter(Sample %in% df_id$row) %>% 
+  tibble::column_to_rownames(var = "Sample") %>% 
+  dplyr::select(group$Sample) %>% 
+  t() %>% 
+  as.data.frame()
+
+WGCNA::corAndPvalue(df)$cor %>% 
+  as.matrix() %>% 
+  corrplot::corrplot()
+
+library(linkET)
+library(ggtext)
+
+correlate(df) %>% 
+  as_md_tbl() %>% 
+  qcorrplot(type = "lower") +
+  geom_square() +
+  scale_fill_gradientn(colours = RColorBrewer::brewer.pal(11, "RdBu")) +
+  theme(axis.text = element_blank(),
+        axis.title = element_blank())
+
+# 
+df.cor = WGCNA::corAndPvalue(df)$cor %>% 
+  as.data.frame() %>% 
+  dplyr::mutate(temp = 1) %>% 
+  reshape2::melt(id.vars = "temp") 
+
+
+library(tidyverse)
+
+df = NULL
+
+dir_fastq = dir("/home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/stress/data/rawdata/fastq/")
+
+sample = data.frame()
+
+for (i in dir_fastq) {
+  fa_temp = stringr::str_split(i, "\\.")
+  len = length(stringr::str_split(fa_temp[[1]][1],"_")[[1]])
+  if (len == 1) {
+    df_temp = data.frame(sra = stringr::str_split(fa_temp[[1]][1],"_")[[1]][1],
+                         group = "single")
+    
+  }else{
+    df_temp = data.frame(sra = stringr::str_split(fa_temp[[1]][1],"_")[[1]][1],
+                         group = "pair")
+    
+  }
+  
+  sample = rbind(sample, df_temp)
+}
+
+sample = sample %>% 
+  dplyr::filter(!duplicated(sra))
+
+
+for (i in 1:nrow(sample)) {
+  
+  m = sample$sra[i]
+  
+  if (sample$group[i] == "single") {
+    comm = paste0("hisat2 --new-summary -p 75 -x /home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/stress/data/genome/index/nip.index",
+                  " -U /home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/stress/data/rawdata/fastq/",m,".fastq",
+                  " -S /home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/stress/mapping/",m,".sam") %>% 
+      as.data.frame()
+    df = rbind(df, comm)
+  }else{
+    comm = paste0("hisat2 --new-summary -p 75 -x /home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/stress/data/genome/index/nip.index",
+                  " -1 /home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/stress/data/rawdata/fastq/",m,"_1.fastq",
+                  " -2 /home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/stress/data/rawdata/fastq/",m,"_2.fastq",
+                  " -S /home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/stress/mapping/",m,".sam") %>% 
+      as.data.frame()
+    df = rbind(df, comm)
+  }
+  
+  comm1 = paste0("samtools sort -@ 70 -o /home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/stress/bam/",m,".sorted.bam", 
+                 " /home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/stress/mapping/",m,".sam") %>% 
+    as.data.frame()
+  df = rbind(df, comm1)
+  
+  comm2 = paste0("samtools index /home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/stress/bam/",m,".sorted.bam") %>% 
+    as.data.frame()
+  df = rbind(df, comm2)
+  
+  comm3 = paste0("htseq-count -f bam -r name -i gene_id -s reverse -t exon -m intersection-nonempty",
+                 ' /home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/stress/bam/' , m, '.sorted.bam', 
+                 ' /home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/stress/data/genome/Nip.gtf',
+                 ' > ',  '/home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/stress/counts/',  m, '.count.txt') %>% 
+    as.data.frame()
+  
+  if (sample$group[i] == "single") {
+    comm4 = paste0("featureCounts -t exon -g gene_id -a /home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/stress/data/genome/Nip.gtf -o ",
+                   "/home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/stress/counts/",m,".counts.featurecounts.txt ",
+                   "/home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/stress/bam/",m,".sorted.bam")  %>% 
+      as.data.frame()
+    df = rbind(df, comm4)
+  }else{
+    comm4 = paste0("featureCounts -p -t exon -g gene_id -a /home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/stress/data/genome/Nip.gtf -o ",
+                   "/home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/stress/counts/",m,".counts.featurecounts.txt ",
+                   "/home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/stress/bam/",m,".sorted.bam")  %>% 
+      as.data.frame()
+    df = rbind(df, comm4)
+  }
+  
+  comm5 = paste0("cut -f 1,7 /home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/stress/counts/",m,".counts.featurecounts.txt | grep -v '^#' > ", 
+                 "/home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/stress/counts/",m,".counts.txt") %>% 
+    as.data.frame()
+  df = rbind(df, comm5)
+}
+
+
+data.table::fwrite(df,
+                   "/home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/stress/mapping.sam2bam.and.featurecounts.2.sh", 
+                   col.names = FALSE, row.names = FALSE, quote = FALSE)
+
+
+
+
+
+
+
+
+
+
+
+
+import os
+
+f_pep = open("/opt/publicdata/refgenome/rice/33pan_genone/all.pep.fasta","r")
+
+f_new = open("/home/lixiang/project/33PanGenomeWRKYFamily/data/33pangenome/all.pep.new.fasta","w")
+
+f_read = f_pep.readlines()
+
+for line in f_read:
+  if " predict " in line:
+    line = line.replace(" predict ","")
+  else:
+    line = line
+  
+  if "LOC_" in line:
+    line = line.split(" ")[0] + "\n"
+  else:
+    line = line
+  
+  line = line.replace("P0","T0")
+  
+  f_new.write(line)
+  
+f_new.close()
+
+library(tidyverse)
+
+dir_fastq = dir("/home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/data/fastq/")
+
+df = NULL
+
+for (i in dir_fastq) {
+  if (i == "code") {
+    next
+  }else{
+    j = stringr::str_split(i, "\\.")[[1]][1]
+    comm = paste0("hisat2 --new-summary -p 70 -x data/genome/index/ir64.index -U data/fastq/",
+                  i," -S mapping/",j,".sam"," R > mapping.log/", j,".mapping.log  2>&1") %>% 
+      as.data.frame()
+    df = rbind(df, comm)
+  }
+}
+
+
+data.table::fwrite(df,
+                   "/home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/run.mapping.sh", 
+                   col.names = FALSE, row.names = FALSE)
+
+library(tidyverse)
+
+df = NULL
+
+dir_fastq = dir("/home/lixiang/project/acuce/rna-seq-15_69_87/data/raw_data/")
+
+sample_id = c()
+for (i in dir_fastq) {
+  if (i == "md5.txt") {
+    next
+  }else{
+    j = stringr::str_sub(i, 1,8)
+    sample_id = c(sample_id, j)
+  }
+}
+
+
+sample_id = unique(sample_id)
+
+for (i in sample_id) {
+  if (i == "md5.txt") {
+    next
+  }else{
+    comm = paste0("hisat2 --new-summary -p 75 -x /opt/publicdata/refgenome/rice/acuce/index/hisat2/acuce.index",
+                  " -1 /home/lixiang/project/acuce/rna-seq-15_69_87/data/raw_data/",i,"_1.fq.gz",
+                  " -2 /home/lixiang/project/acuce/rna-seq-15_69_87/data/raw_data/",i,"_2.fq.gz",
+                  " -S /home/lixiang/project/acuce/rna-seq-15_69_87/mapping/",i,".sam") %>% 
+      as.data.frame()
+    df = rbind(df, comm)
+  
+    comm1 = paste0("samtools sort -@ 70 -o /home/lixiang/project/acuce/rna-seq-15_69_87/bam/",i,".sorted.bam", 
+                   " /home/lixiang/project/acuce/rna-seq-15_69_87/mapping/",i,".sam") %>% 
+      as.data.frame()
+    df = rbind(df, comm1)
+    
+    comm2 = paste0("samtools index /home/lixiang/project/acuce/rna-seq-15_69_87/bam/",i,".sorted.bam") %>% 
+      as.data.frame()
+    df = rbind(df, comm2)
+    
+    comm3 = paste0("htseq-count -f sam -r name -i gene_id -s reverse -t exon -m intersection-nonempty",
+                   ' /home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/mapping/' , i, #, '.sorted.bam' , 
+                   ' /home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/data/genome/ir64.gtf',
+                   ' > ',  '/home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/counts/',  j, '.count.txt') %>% 
+      as.data.frame()
+    
+    comm4 = paste0("featureCounts -p -t exon -g gene_id -a /opt/publicdata/refgenome/rice/acuce/annotation/acuce.gtf -o ",
+                   "/home/lixiang/project/acuce/rna-seq-15_69_87/counts/",i,".counts.featurecounts.txt ",
+                   "/home/lixiang/project/acuce/rna-seq-15_69_87/bam/",i,".sorted.bam")  %>% 
+      as.data.frame()
+    df = rbind(df, comm4)
+    
+    comm5 = paste0("cut -f 1,7 /home/lixiang/project/acuce/rna-seq-15_69_87/counts/",i,".counts.featurecounts.txt | grep -v '^#' > ", 
+                   "/home/lixiang/project/acuce/rna-seq-15_69_87/counts/",i,".counts.txt") %>% 
+      as.data.frame()
+    df = rbind(df, comm5)
+  }
+}
+
+
+data.table::fwrite(df,
+                   "/home/lixiang/project/acuce/rna-seq-15_69_87/mapping.sam2bam.and.featurecounts.sh", 
+                   col.names = FALSE, row.names = FALSE, quote = FALSE)
+
+
+
+
+
+
+
+
+
+
+
+
+rm(list = ls())
+
+library(ggplotify)
+
+df_id = data.table::fread("results/step1_get_id/id2species.txt", header = TRUE) %>% 
+  dplyr::filter(species == "IR64") %>% 
+  dplyr::mutate(geneid = stringr::str_replace(geneid,".T01",""))
+
+df_sample_info = data.table::fread("rna-seq/data/sample.info.txt", header = TRUE)
+
+df_tpm = data.table::fread("rna-seq/TPM.csv", header = TRUE) %>% 
+  dplyr::rename(geneid = V1) %>% 
+  dplyr::filter(geneid %in% df_id$geneid) %>% 
+  as.data.frame()
+
+rownames(df_tpm) = df_tpm$geneid
+df_tpm = df_tpm[,-1] 
+
+
+df_ann = df_sample_info %>% 
+  dplyr::mutate(group3 = as.character(group3)) %>% 
+  as.data.frame()
+rownames(df_ann) = df_ann$id
+df_ann = df_ann[,-1]
+
+df_tpm %>% 
+  pheatmap:::scale_rows() %>% 
+  pheatmap::pheatmap(show_rownames = FALSE,
+                     show_colnames = FALSE,
+                     cluster_cols = FALSE,
+                     annotation_col = df_ann) ->p 
+p
+p1 = ggplotify::as.ggplot(p)
+p1
+export::graph2tif(p1, file = "rna-seq/wrky.heatmap.tif",width = 10, height = 8, dpi = 500)
+rm(list = ls())
+
+df = data.table::fread("rna-seq/mapping.rate.stat", header = FALSE)
+rm(list = ls())
+
+df_id = data.table::fread("results/step2_hmm_search/unique.id.new.wrky.txt",header = FALSE) %>% 
+  dplyr::mutate(temp = stringr::str_sub(V1, 3, 6)) %>% 
+  dplyr::filter(temp == "IR64") %>% 
+  dplyr::mutate(gene = stringr::str_sub(V1, 1, 20)) %>% 
+  dplyr::select(gene)
+
+df_smaple = data.table::fread("rna-seq/warmnighttemp/data/sample.info.txt", header = TRUE) %>% 
+  dplyr::filter(group1 %in% c("Control"))
+
+df_fpkm = data.table::fread("rna-seq/warmnighttemp/FPKM.csv", header = TRUE) %>% 
+  dplyr::filter(V1 %in% df_id$gene) %>% 
+  dplyr::mutate(V1 = stringr::str_sub(V1, 1, 17)) %>% 
+  tibble::column_to_rownames(var = "V1") %>% 
+  dplyr::select(df_smaple$id)
+
+
+df_ann_col = df_smaple %>% 
+  dplyr::select(1,4) %>% 
+  tibble::column_to_rownames(var = "id") %>% 
+  dplyr::rename(Time = group3) %>% 
+  dplyr::mutate(Time = factor(Time, levels = c(0,3.5,7, 10.5, 12, 14, 17.5, 23)))
+
+
+df_fpkm %>% 
+  pheatmap:::scale_rows() %>% 
+  t() %>% 
+  pheatmap::pheatmap(annotation_row = df_ann_col,
+                     show_colnames = FALSE,
+                     show_rownames = FALSE,
+                     cellwidth = 5,
+                     cellheight = 5) -> p.temp
+p = ggplotify::as.ggplot(p.temp)
+
+ggsave(p, filename = "results/step7_rna-seq/夜间高温CK时序.png",
+       width = 12, height = 6, dpi = 500)
+
+
+export::graph2ppt(p, file = "results/step7_rna-seq/夜间高温CK时序.pptx",
+                  width = 12, height = 6, center = TRUE)
+
+
+
+
+
+rm(list = ls())
+
+library(tidyverse)
+
+df = NULL
+
+dir_fastq = dir("/home/lixiang/project/acuce/rna-seq-15_69_87/data/raw_data/")
+
+sample = c()
+
+for (i in dir_fastq) {
+  sample_temp = stringr::str_sub(i,1,8)
+  sample = c(sample,sample_temp)
+}
+
+sample = unique(sample) %>% 
+  setdiff("md5.txt")
+
+for (i in sample) {
+  
+  if (stringr::str_sub(i, 1, 3) == "A87") {
+    comm = paste0("hisat2 --new-summary -p 70 -x", 
+                  " /home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/stress/data/genome/index/nip.index",
+                  " --min-intronlen 20 --max-intronlen 10000 --dta ",
+                  " -1 /home/lixiang/project/acuce/rna-seq-15_69_87/data/raw_data/",i,"_1.fq.gz",
+                  " -2 /home/lixiang/project/acuce/rna-seq-15_69_87/data/raw_data/",i,"_2.fq.gz",
+                  " -S /home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/plant-plant/mapping/",i,".sam") %>% 
+      as.data.frame()
+    df = rbind(df, comm)
+    
+    comm1 = paste0("samtools sort -@ 70 -o /home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/plant-plant/bam/",i,".sorted.bam", 
+                   " /home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/plant-plant/mapping/",i,".sam") %>% 
+      as.data.frame()
+    df = rbind(df, comm1)
+    
+    comm2 = paste0("samtools index /home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/plant-plant/bam/",i,".sorted.bam") %>% 
+      as.data.frame()
+    df = rbind(df, comm2)
+    
+    
+    comm2_1 = paste0("stringtie ","/home/lixiang/project/acuce/lincRNA_test/bam/",i,".sorted.bam -G ",
+                     "/home/publicdata/refgenome/rice/acuce/annotation/YLG.gff3  -j 3 -o ",
+                     "/home/lixiang/project/acuce/lincRNA_test/stringtie/",i,".gtf") %>% 
+      as.data.frame()
+    
+    #df = rbind(df, comm2_1)
+    
+    if (i == "A87_87_3343") {
+      comm = paste0("stringtie --merge -F 0.5 -T 0.5 -G ",
+                    "/home/publicdata/refgenome/rice/acuce/annotation/YLG.gff3 " ,
+                    paste0("/home/lixiang/project/lincRNA/stringtie/",sample,".gtf"),
+                    " > Osat.merged.gtf")
+    }
+  }
+}
+
+
+data.table::fwrite(df,
+                   "/home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/plant-plant/mapping.sh", 
+                   col.names = FALSE, row.names = FALSE, quote = FALSE)
+ 
+
+
+
+
+
+
+
+
+
+
+
+rm(list = ls())
+
+df_seq = pac4xiang::fasta2df("results/step4_seq_related/extracted.pep.fa") %>% 
+  dplyr::mutate(id = stringr::str_replace(id, ">","")) 
+
+for (i in 1:nrow(df_seq)) {
+  df_seq$id[i] = stringr::str_split(df_seq$id[i]," ")[[1]][1]
+}
+
+df_seq %>% 
+  pac4xiang::df2fasta() %>% 
+  data.table::fwrite(file = "results/step4_seq_related/extracted.pep.new.id.fa", col.names = FALSE, row.names = FALSE)
+
+for (i in seq(1,3500,500)) {
+  if (i == 3001) {
+    df_sub = df_seq[3001:3257,] %>% 
+      pac4xiang::df2fasta()
+    filename = "results/step4_seq_related/seq_500_in_one_file/3001-3257.fa"
+    data.table::fwrite(df_sub, file = filename, col.names = FALSE, row.names = FALSE)
+  }else{
+    df_sub = df_seq[i:(i+499),] %>% 
+      pac4xiang::df2fasta()
+    filename = paste0("results/step4_seq_related/seq_500_in_one_file/",i,"-",i+499,".fa")
+    data.table::fwrite(df_sub, file = filename, col.names = FALSE, row.names = FALSE)
+  }
+}
+rm(list = ls())
+
+file_dir = dir("/opt/publicdata/refgenome/rice/33pan_genone/")
+
+for (i in file_dir) {
+  if (stringr::str_sub(i,1,3) == "all") {
+    next
+  }else{
+    file_dir_2 = dir(paste0("/opt/publicdata/refgenome/rice/33pan_genone/",i))
+    for (j in file_dir_2) {
+      if (stringr::str_sub(j, nchar(j)-2, nchar(j)) == "gff") {
+        print(j)
+        
+        data.table::fread(paste0("/opt/publicdata/refgenome/rice/33pan_genone/",i,"/",j)) %>% 
+          dplyr::mutate(V1 = paste0(V1, "_",i)) %>% 
+          data.table::fwrite(file = paste0("data/gff/",i, ".gff"), sep = "\t",
+                             row.names = FALSE, col.names = FALSE, quote = FALSE)
+      }else{
+        next
+      }
+    }
+  }
+}
+
+
+for (i in file_dir) {
+  if (stringr::str_sub(i,1,3) == "all") {
+    next
+  }else{
+    file_dir_2 = dir(paste0("/opt/publicdata/refgenome/rice/33pan_genone/",i))
+    for (j in file_dir_2) {
+      if (stringr::str_sub(j, nchar(j)-1, nchar(j)) == "fa") {
+        print(j)
+      }else{
+        next
+      }
+    }
+  }
+}
+rm(list = ls())
+
+library(tidyverse)
+
+df_id = data.table::fread("results/step1_get_id/id2species.txt", header = TRUE)
+
+df_pep = data.table::fread("results/step4_seq_related/pep.mw.txt", header = TRUE) %>% 
+  dplyr::rename(geneid = `#ID`) %>% 
+  merge(df_id, by = "geneid", all.x = TRUE) %>% 
+  dplyr::group_by(species) %>% 
+  dplyr::mutate(n = n()) %>% 
+  dplyr::ungroup() %>% 
+  dplyr::arrange(n)
+
+# 计数
+df_pep %>% 
+  dplyr::select(length, species) %>% 
+  dplyr::group_by(species) %>% 
+  dplyr::summarise(n = n()) %>% 
+  as.data.frame() %>% 
+  print()
+  
+# 常规统计
+
+# 长度anova
+df_pep %>% 
+  dplyr::select(length, species) -> df.temp
+
+aov(length ~ species, data = df.temp) %>% summary()
+
+df_pep %>% 
+  dplyr::select(length, species) %>% 
+  dplyr::group_by(species) %>% 
+  summarise(min = min(length),
+            max = max(length),
+            mean = mean(length),
+            median = median(length),
+            sd = sd(length),
+            q1 = quantile(length, 0.25),
+            q3 = quantile(length, 0.75)) -> df.summary.length
+
+df.summary.length %>% 
+  reshape2::melt(id.vars = 1) %>% 
+  ggplot(aes(variable, value, fill = variable)) +
+  geom_boxplot() +
+  scale_fill_aaas() +
+  theme_bw() +
+  theme(axis.title.x = element_blank(),
+        legend.position = "none")
+
+
+
+
+
+#####
+
+df_pep %>% 
+  dplyr::select(`MW(Da)`, species) %>% 
+  dplyr::rename(length = `MW(Da)`) %>% 
+  dplyr::group_by(species) %>% 
+  summarise(min = min(length),
+            max = max(length),
+            mean = mean(length),
+            median = median(length),
+            sd = sd(length),
+            q1 = quantile(length, 0.25),
+            q3 = quantile(length, 0.75)) -> df.summary.mw
+df_pep %>% 
+  dplyr::select(pI, species) %>% 
+  dplyr::rename(length = pI) %>% 
+  dplyr::group_by(species) %>% 
+  summarise(min = min(length),
+            max = max(length),
+            mean = mean(length),
+            median = median(length),
+            sd = sd(length),
+            q1 = quantile(length, 0.25),
+            q3 = quantile(length, 0.75)) -> df.summary.pi
+
+library(openxlsx)
+names <- list('length' = df.summary.length, 'mw' = df.summary.mw, 'pi' = df.summary.pi)
+write.xlsx(names, file = 'results/step4_seq_related/summary.xlsx')
+
+
+
+df_pep$species = factor(df_pep$species, levels = unique(df_pep$species))
+
+# 基因蛋白长度
+df_pep %>% 
+  dplyr::select(length, species) %>% 
+  ggplot(aes(x = length, y = species),show.legend = FALSE) +
+  geom_boxplot(width = 0.6, outlier.size = 0.8) +
+  geom_vline(xintercept = mean(df_pep$length), linetype = "dashed", color = "red") +
+  scale_x_continuous(breaks = seq(100,1500,100)) +
+  labs(x = "Protein length", y = "Rice accession") +
+  theme_bw() +
+  theme(legend.position = "none",
+        axis.text = element_text(size = 12, color = "black"))
+
+export::graph2tif(file = "results/step4_seq_related/蛋白长度统计.tif",
+                  width = 10,
+                  height = 8,
+                  dpi = 500)
+# 基因蛋白长度
+df_pep %>% 
+  dplyr::select(pI, species) %>% 
+  ggplot(aes(x = pI, y = species),show.legend = FALSE) +
+  geom_boxplot(width = 0.6, outlier.size = 0.8) +
+  geom_vline(xintercept = mean(df_pep$pI), linetype = "dashed", color = "red") +
+  scale_x_continuous(breaks = seq(4,12,1)) +
+  labs(x = "Protein isoelectric point", y = "Rice accession") +
+  theme_bw() +
+  theme(legend.position = "none",
+        axis.text = element_text(size = 12, color = "black"))
+
+export::graph2tif(file = "results/step4_seq_related/蛋白分子等电点统计.tif",
+                  width = 10,
+                  height = 8,
+                  dpi = 500)
+rm(list = ls())
+
+
+df_all_id = data.table::fread("results/step2_hmm_search/unique.id.txt",header = FALSE)
+
+# NCBI
+df_ncbi = data.table::fread("results/step4_seq_related/seq_500_in_one_file/ncbi_cdd_search.txt", header = TRUE) %>% 
+  dplyr::filter(`Hit type` == "specific") %>% 
+  dplyr::group_by(Query) %>% 
+  dplyr::mutate(n = n()) %>% 
+  dplyr::ungroup()
+
+for (i in 1:nrow(df_ncbi)) {
+  df_ncbi$Query[i] = stringr::str_split(df_ncbi$Query[i],">")[[1]][2]
+}
+
+df_ncbi_1 = df_ncbi %>% 
+  dplyr::filter(`Short name` == "WRKY")
+
+df_ncbi_1 = df_ncbi_1[!duplicated(df_ncbi_1$Query),] %>% 
+  dplyr::select(1) %>% 
+  dplyr::mutate(isin = 1)
+colnames(df_ncbi_1)[1] = "V1"
+
+df_ncbi_2 = df_ncbi %>% 
+  dplyr::filter(`Short name` != "WRKY")
+
+df_ncbi_not = setdiff(df_all_id$V1, df_ncbi_1$Query) %>% 
+  as_data_frame()
+colnames(df_ncbi_not) = "V1"
+df_ncbi_not = df_ncbi_not %>% 
+  dplyr::mutate(isin = 0)
+
+df_ncbi_final = rbind(df_ncbi_1, df_ncbi_not)
+
+# SMART
+df_smart_not = data.table::fread("results/step4_seq_related/SMART_not_matched.txt", header = FALSE) %>% 
+  dplyr::mutate(isin = 0)
+
+df_smart_is = setdiff(df_all_id$V1, df_smart_not$V1) %>% 
+  as.data.frame()
+colnames(df_smart_is) = "V1"
+
+df_smart_is = df_smart_is %>% 
+  dplyr::mutate(isin = 1)
+
+df_smart = rbind(df_smart_is, df_smart_not)
+
+# Pfam
+
+
+# merge
+df_final = merge(df_ncbi_final, df_smart, by = "V1") %>% 
+  merge(df_pfam, by = "V1")
+colnames(df_final) = c("id","NCBI-CCD","SMART","Pfam")
+
+
+
+
+
+
+
+
+
+
+
+
+rm(list = ls())
+
+library(tidyverse)
+
+data.table::fread("rna-seq/blast/data/genome/MSU.IGDBv1.Allset.gff", header = FALSE) %>% 
+  dplyr::mutate(V9= paste0(V12,V13,";")) %>% 
+  dplyr::select(1:9) %>% 
+  data.table::fwrite(file = "rna-seq/data/genome/ir64.new.1.gtf", 
+                     row.names = FALSE, col.names = FALSE, sep = "\t")
+
+
+data.table::fread("rna-seq/blast/data/genome/MSU.IGDBv1.Allset.gff", header = FALSE) %>% 
+  dplyr::mutate(V1= paste0(V1,"_Nip")) %>% 
+  #dplyr::select(1:8) %>% 
+  data.table::fwrite(file = "rna-seq/blast/data/genome/Nip.gff", 
+                     row.names = FALSE, col.names = FALSE, sep = "\t")
+rm(list = ls())
+
+
+# 提取mRNA2geneID
+file_all <- dir("/opt/publicdata/refgenome/rice/33pan_genone/")
+
+for (i in file_all) {
+  if (stringr::str_sub(i, 1, 3) != "all") {
+    dir_file <- paste0("/opt/publicdata/refgenome/rice/33pan_genone/", i, "/")
+    dir_file <- dir(dir_file)
+    for (j in dir_file) {
+      if (stringr::str_sub(j, nchar(j) - 2, nchar(j)) == "gff") {
+        command <- paste0(
+          " ../../../code/mRNAid_to_geneid.pl ",
+          paste0("/opt/publicdata/refgenome/rice/33pan_genone/", i, "/", j, " "),
+          stringr::str_split(j, "\\.")[[1]][1], ".mRNA2geneID.txt"
+        )
+        system2(command = "perl", args = command)
+      }
+    }
+  }
+}
+
+# 查看提取的结果是否正常
+files = dir("./")
+
+for (i in files) {
+  print(stringr::str_split(i, "\\.")[[1]][1])
+  data.table::fread(i, nrows = 5, header = FALSE) %>% 
+    print()
+  print("----------------------------------------------------------------------")
+}
+
+
+# 确定没有问题后全部合并
+final_res = NULL
+
+files = dir("./")
+
+for (i in files) {
+  data.table::fread(i, header = TRUE) %>% 
+    rbind(final_res) -> final_res
+  print("----------------------------------------------------------------------")
+}
+
+data.table::fwrite(final_res, 
+                   file = "../../results/step1_get_id/mRNA2geneID.txt", 
+                   row.names = FALSE,
+                   col.names = TRUE,
+                   quote = FALSE,
+                   sep = "\t"
+                   )
+
+################################################################################
+# 提取geneID2mRNAid
+file_all <- dir("/opt/publicdata/refgenome/rice/33pan_genone/")
+
+for (i in file_all) {
+  if (stringr::str_sub(i, 1, 3) != "all") {
+    dir_file <- paste0("/opt/publicdata/refgenome/rice/33pan_genone/", i, "/")
+    dir_file <- dir(dir_file)
+    for (j in dir_file) {
+      if (stringr::str_sub(j, nchar(j) - 2, nchar(j)) == "gff") {
+        command <- paste0(
+          " ../../../code/geneid_to_mRNAid.pl ",
+          paste0("/opt/publicdata/refgenome/rice/33pan_genone/", i, "/", j, " "),
+          stringr::str_split(j, "\\.")[[1]][1], ".geneID2mRNAid.txt"
+        )
+        system2(command = "perl", args = command)
+      }
+    }
+  }
+}
+
+
+
+# 查看提取的结果是否正常
+files = dir("./")
+
+for (i in files) {
+  print(stringr::str_split(i, "\\.")[[1]][1])
+  data.table::fread(i, nrows = 5, header = FALSE) %>% 
+    #dplyr::select(1:6) %>% 
+    print()
+  print("----------------------------------------------------------------------")
+}
+
+
+
+# 确定没有问题后全部合并
+# 合并脚本
+head("../../../code/合并mRNA2geneID.py")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+rm(list = ls())
+
+library(tidyverse)
+
+df <- pac4xiang::fasta2df("results/step4_seq_related/new.id.ch.type.fa")
+
+# Paul J. Rushton
+df_new <- df %>%
+  dplyr::mutate(
+    #first_char = stringr::str_extract(seq, "\\w{1}(WRKYGQK)"),
+    first_char = stringr::str_extract(seq, "(WRKYGQK)"),
+    sec_char = stringr::str_extract(seq, "(RSYYKC)")
+  ) %>%
+  dplyr::mutate(sec_char = ifelse(is.na(sec_char),
+    stringr::str_extract(seq, "(RSYYKC)"),
+    sec_char
+  )) %>%
+  dplyr::mutate(sec_char = ifelse(is.na(sec_char),
+    stringr::str_extract(seq, "(RSYYRC)"),
+    sec_char
+  )) %>%
+  dplyr::mutate(sec_char = ifelse(is.na(sec_char),
+    stringr::str_extract(seq, "(RGYYKC)"),
+    sec_char
+  )) %>%
+  dplyr::mutate(sec_char = ifelse(is.na(sec_char),
+    stringr::str_extract(seq, "(RGYYRC)"),
+    sec_char
+  )) %>%
+  dplyr::mutate(sec_char = ifelse(is.na(sec_char),
+    stringr::str_extract(seq, "(RAYYRC)"),
+    sec_char
+  )) %>%
+  dplyr::mutate(sec_char = ifelse(is.na(sec_char),
+    stringr::str_extract(seq, "(RSYYRC)"),
+    sec_char
+  )) %>%
+  dplyr::mutate(sec_char = ifelse(is.na(sec_char),
+    stringr::str_extract(seq, "(CPVKKKV)"),
+    sec_char
+  )) %>%
+  dplyr::mutate(sec_char = ifelse(is.na(sec_char),
+    stringr::str_extract(seq, "(CPVRKQV)"),
+    sec_char
+  )) %>%
+  dplyr::mutate(
+    temp = paste0(first_char, sec_char),
+    subgroup = NA
+  ) %>%
+  dplyr::mutate(subgroup = ifelse(is.na(stringr::str_extract(temp, "(WRKYGQK)(RSYYKC)")),
+    subgroup,
+    "Ⅰ NT"
+  )) %>%
+  dplyr::mutate(subgroup = ifelse(is.na(stringr::str_extract(temp, "(WRKYGQK)(RSYYKC)")),
+    subgroup,
+    "I CT"
+  )) %>%
+  dplyr::mutate(subgroup = ifelse(is.na(stringr::str_extract(temp, "(WRKYGQK)(RSYYRC)")),
+    subgroup,
+    "Ⅱ c"
+  )) %>%
+  dplyr::mutate(subgroup = ifelse(is.na(stringr::str_extract(temp, "(WRKYGQK)(RGYYKC)")),
+    subgroup,
+    "Ⅱ d"
+  )) %>%
+  dplyr::mutate(subgroup = ifelse(is.na(stringr::str_extract(temp, "(WRKYGQK)(RGYYRC)")),
+    subgroup,
+    "Ⅱ e"
+  )) %>%
+  dplyr::mutate(subgroup = ifelse(is.na(stringr::str_extract(temp, "(WRKYGQK)(RAYYRC)")),
+    subgroup,
+    "Ⅲ a"
+  )) %>%
+  dplyr::mutate(subgroup = ifelse(is.na(stringr::str_extract(temp, "(WRKYGQK)(RSYYRC)")),
+    subgroup,
+    "Ⅲ b"
+  )) %>%
+  dplyr::mutate(subgroup = ifelse(is.na(stringr::str_extract(temp, "(WRKYGQK)(CPVKKKV)")),
+    subgroup,
+    "Ⅱ a"
+  )) %>%
+  dplyr::mutate(subgroup = ifelse(is.na(stringr::str_extract(temp, "(WRKYGQK)(CPVRKQV)")),
+    subgroup,
+    "Ⅱ b"
+  )) %>% 
+  dplyr::mutate(subgroup = ifelse(is.na(subgroup),"other",subgroup))
+
+data.table::fwrite(df_new, file = "results/step4_seq_related/seq_subgroup_chenxujun.txt", row.names = FALSE)
+
+# Paul J. Rushton
+df_new <- df %>%
+  dplyr::mutate(
+    #first_char = stringr::str_extract(seq, "\\w{1}(WRKYGQK)"),
+    first_char = stringr::str_extract(seq, "(WRKY)"),
+    sec_char = stringr::str_extract(seq, "(C)\\w{4,7}(C)"),
+    third_char = stringr::str_extract(seq, "(H)\\w{1}(H)")
+  ) %>% 
+  dplyr::mutate(third_char = ifelse(is.na(third_char),
+                                    stringr::str_extract(seq, "(H)\\w{1}(C)"),
+                                    third_char
+                                    )) %>% 
+  dplyr::mutate(lab1 = paste0(stringr::str_sub(sec_char,1,1),
+                              stringr::str_sub(sec_char,nchar(sec_char),nchar(sec_char))),
+                lab2 = paste0(stringr::str_sub(third_char,1,1),
+                              stringr::str_sub(third_char,nchar(third_char),nchar(third_char)))
+                ) %>% 
+  dplyr::mutate(temp = paste0(lab1, lab2)) %>% 
+  dplyr::mutate(subgroup = case_when(temp == "CCHH" ~ "C2H2",
+                                  temp == "CCHC" ~ "C2HC",
+                                  temp == "CCNANA" ~ "C2-",
+                                  temp == "NANAHC" ~ "-HC",
+                                  temp == "NANAHH" ~ "-H2",
+                                  TRUE ~ "-"))
+
+data.table::fwrite(df_new, file = "results/step4_seq_related/seq_subgroup_CH_type.txt", row.names = FALSE)
+
+
+rm(list = ls())
+
+library(GenomicFeatures)
+library(data.table)
+library(dplyr)
+
+df_all <- data.table::fread("rna-seq/counts/SRR9969498.counts.txt", header = TRUE)
+colnames(df_all) <- c("geneid", "SRR9969498")
+
+file_dir <- dir("rna-seq/counts/")
+
+for (i in file_dir) {
+  len <- length(stringr::str_split(i, "\\.")[[1]])
+  if (len == 3) {
+    sample <- stringr::str_split(i, "\\.")[[1]][1]
+    df_temp <- data.table::fread(paste0("rna-seq/counts/", i), header = TRUE)
+    colnames(df_temp) <- c("geneid", sample)
+
+    if (sample == "SRR9969498") {
+      next
+    } else {
+      df_all <- merge(df_all, df_temp, by = "geneid")
+    }
+  }
+}
+
+data.table::fwrite(df_all,
+  file = "/home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/counts.txt",
+  row.names = FALSE, quote = FALSE
+)
+
+# counts转换成tpm和FPKM
+# txdb <- makeTxDbFromGFF("/home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/data/genome/ir64.gff",format="auto")
+# xons_gene <- exonsBy(txdb, by = "gene")
+# exons_gene_lens <- lapply(exons_gene,function(x){sum(width(reduce(x)))})
+# length=t(as.data.frame(exons_gene_lens))
+# write.table(length,'/home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/data/genome/ir64.gene.length.txt',col.names=F,row.names=T,quote=F,sep='\t')
+
+gene.len <- fread("/home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/data/genome/ir64.gene.length.txt",
+  header = FALSE
+) %>%
+  dplyr::rename(geneid = V1, length = V2)
+
+df.all <- merge(df_all, gene.len, by = "geneid")
+
+kb <- df.all$length / 1000
+
+rpk <- df.all[, 2:(ncol(df.all) - 1)] / kb
+rownames(rpk) <- df.all$gene
+
+# TPM
+tpm <- t(t(rpk) / colSums(rpk) * 1000000) %>% as.data.frame()
+rownames(tpm) <- df.all$gene
+data.table::fwrite(tpm, file = "/home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/TPM.csv", quote = F, row.names = TRUE)
+
+# FPKM
+fpkm <- t(t(rpk) / colSums(df_all[, 2:ncol(df_all)]) * 10^6) %>% as.data.frame()
+rownames(fpkm) <- df.all$gene
+data.table::fwrite(fpkm, file = "/home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/FPKM.csv", quote = F, row.names = TRUE)
+
+
+
+
+
+
+
+
+import os
+
+print(os.listdir())
+print(os.getcwd())
+
+f = open("../../../results/step1_get_id/geneid2mrnaid.txt","w")
+
+for i in os.listdir():
+  if i == ".Rhistory":
+    next
+  else:
+    f_open = open(i, "r")
+    f_read = f_open.readlines()
+    for line in f_read:
+      f.write(line)
+      
+f.close()
+
+rm(list = ls())
+
+library(ggtree)
+
+df_tree = ggtree::read.tree("results/step4_seq_related/new.id.ch.type.aligned.tree.nwk")
+
+
+# 导入序列亚群分组
+
+# CH类型分组
+df_seq_group = data.table::fread("results/step4_seq_related/seq_subgroup_CH_type.txt", header = TRUE) %>% 
+  dplyr::mutate(ID = id, group = subgroup) %>% 
+  dplyr::mutate(ID = stringr::str_replace(id,">","")) %>% 
+  dplyr::select(ID, group)
+
+# 陈旭君等分组
+df_seq_subgroup = data.table::fread("results/step4_seq_related/seq_subgroup_chenxujun.txt", header = TRUE) %>% 
+  dplyr::select(id, subgroup) %>% 
+  dplyr::rename(ID = id) %>% 
+  dplyr::mutate(ID = stringr::str_sub(ID,2, nchar(ID)))
+
+# NCBI-CDD pvalue
+df_ncbi = data.table::fread("results/step4_seq_related/ncbi_cdd_search.txt", header = TRUE)
+
+for (i in 1:nrow(df_ncbi)) {
+  df_ncbi$Query[i] = stringr::str_split(df_ncbi$Query[i],">")[[1]][2]
+}
+
+df_ncbi_selected = df_ncbi %>% 
+  dplyr::filter(Query %in% df_seq_group$ID) %>% 
+  #dplyr::filter(`Short name` == "WRKY") %>% 
+  dplyr::filter(!duplicated(Query)) %>% 
+  dplyr::rename(ID = Query) %>% 
+  merge(df_seq_group, by = "ID")
+
+# 处理第一个结构域序列
+df_domain_1 = pac4xiang::fasta2df("results/step2_hmm_search/first.domain.fa") %>% 
+  dplyr::mutate(id = stringr::str_replace(id, ">", ""))
+
+for (i in 1:nrow(df_domain_1)) {
+  df_domain_1$id[i] = stringr::str_split(df_domain_1$id[i]," ")[[1]][1]
+}
+
+df_domain_1 %>% 
+  dplyr::filter(id %in% df_seq_group$ID) %>% 
+  pac4xiang::df2fasta() %>% 
+  data.table::fwrite(file = "results/step4_seq_related/first_domain.fa",
+                     col.names = FALSE, row.names = FALSE, quote = FALSE)
+  
+
+
+
+# 绘制进化树
+p = ggtree(df_tree, layout = "fan", open.angle = 0, branch.length = "none")
+p
+
+p1 = p %<+% df_seq_subgroup +
+  geom_tippoint(aes(color = subgroup)) +
+  scale_color_igv(name = "Subgroup")
+p1
+
+
+p2 = p1 %<+%  df_seq_group + 
+  geom_fruit(geom = geom_tile,
+             mapping = aes(fill = group),
+             offset = 0.04, size = 0.02, width = 1.5
+             ) +
+  scale_fill_aaas(name = "CH Type")
+
+p2
+
+export::graph2tif(file = "results/step4_seq_related/phylo.tree.tif",
+                  width = 10, height = 8, dpi = 500)
+
+# 匹配序列
+p = ggtree(df_tree, layout = "fan", open.angle = 0)
+p
+
+p1 = p %<+% df_seq_subgroup +
+  geom_tippoint(aes(color = subgroup)) +
+  scale_color_igv(name = "Subgroup")
+p1
+
+
+p2 = p1 %<+%  df_seq_group + 
+  geom_fruit(geom = geom_tile,
+             mapping = aes(fill = group),
+             offset = 0.04, size = 0.02, width = 0.3
+  ) +
+  scale_fill_aaas(name = "CH Type")
+
+p2
+
+p3 = p2 +  layout_rectangular() +
+  theme(legend.position = c(0.15,0.6),
+        legend.text=element_text(size=13),
+        legend.title = element_text(size = 15))
+p3
+
+export::graph2tif(file = "results/step4_seq_related/phylo.tree.水平.tif",
+                  width = 10, height = 8, dpi = 500)
+
+
+
+
+
+rm(list = ls())
+
+all_spe = NULL
+
+df = data.table::fread("results/step2_hmm_search/unique.id.new.wrky.txt", header = FALSE) %>% 
+  dplyr::mutate(species = "")
+
+spe = dir("data/geneIDandmRNAid/geneID2mRNAid/")
+
+species = c()
+
+for (i in spe) {
+  temp = stringr::str_split(i,"\\.")[[1]][1]
+  species = c(species, temp)
+}
+
+for (i in 1:nrow(df)) {
+  if (stringr::str_sub(df$V1[i],1,3) == "LOC") {
+    df$species[i] = "Nipponbare"
+  }else{
+    for (j in species) {
+      if (grepl(j,df$V1[i])) {
+        df$species[i] = j
+      }
+    }
+  }
+}
+
+colnames(df) = c("geneid","species")
+
+data.table::fwrite(df, file = "results/step1_get_id/id2species.txt",row.names = FALSE, col.names = TRUE)
+
+
+
+
+# 染色体分布偏好性
+table(df$species) %>% 
+  as.data.frame() %>% 
+  dplyr::mutate(mean = mean(Freq)) %>% 
+  dplyr::arrange(Freq) -> df.spe
+
+levels = unique(df.spe$Var1)
+
+
+df_id = data.table::fread("results/step1_get_id/mRNA2geneID.txt", header = FALSE)
+
+df_chr = merge(df, df_id, by.x = "V1", by.y = "V1", all.x = TRUE) %>% 
+  dplyr::group_by(species, V3) %>% 
+  dplyr::mutate(n = n()) %>% 
+  dplyr::ungroup() %>% 
+  dplyr::filter(V3 != "Contig109END")
+df_chr$V3 = factor(df_chr$V3, levels = c(paste0("Chr",1:12),"Contig109END"))
+
+ggplot(df_chr, aes(x = n, y = species, fill = V3)) +
+  geom_bar(stat = "identity", width = 0.8, position="fill") +
+  #geom_vline(xintercept = 105, color = "white") +
+  scale_fill_igv() +
+  scale_x_continuous(expand = c(0,0), label = scales::percent_format(scale = 100)) +
+  scale_y_discrete(limit = levels) +
+  labs(x = "Percent", y = "Rice Accessions",
+       title = "Number of genes in rice accessions",
+       fill = "Chromosome") +
+  theme_prism() +
+  theme(legend.title = element_text("Chromosome"))
+
+export::graph2tif(file = "results/step4_seq_related/wrky基因数量统计_染色体.tif",
+                  width = 8,
+                  height = 8,
+                  dpi = 500)
+
+
+
+
+
+
+# 导入序列亚分组
+library(ggsci)
+library(ggprism)
+
+df_subgroup = data.table::fread("results/step4_seq_related/seq_subgroup_chenxujun.txt", header = TRUE) %>% 
+  dplyr::mutate(id = stringr::str_replace(id,">",""))
+for (i in 1:nrow(df_subgroup)) {
+  df_subgroup$id[i] = stringr::str_split(df_subgroup$id[i]," ")[[1]][1]
+}
+df_subgroup_plot = merge(df_subgroup, df, by.x = "id", by.y = "V1") %>% 
+  dplyr::mutate(temp2 = paste0(species, subgroup)) %>% 
+  dplyr::mutate(temp2 = stringr::str_replace_all(temp2," ","")) %>% 
+  dplyr::group_by(temp2) %>% 
+  dplyr::mutate(n = n(),
+                sum = sum(n)) %>% 
+  dplyr::ungroup() %>% 
+  dplyr::select(species, subgroup, n, temp2, sum)
+  
+df_subgroup_plot = df_subgroup_plot[!duplicated(df_subgroup_plot$temp2),] %>% 
+  dplyr::arrange(sum)
+df_subgroup_plot$species = factor(df_subgroup_plot$species, levels = unique(df_subgroup_plot$species))
+
+table(df$species) %>% 
+  as.data.frame() %>% 
+  dplyr::mutate(mean = mean(Freq)) %>% 
+  dplyr::arrange(Freq) -> df.spe
+
+levels = unique(df.spe$Var1)
+
+ggplot(df_subgroup_plot, aes(x = n, y = species, fill = subgroup)) +
+  geom_bar(stat = "identity", width = 0.8) +
+  geom_vline(xintercept = 105, color = "white") +
+  scale_fill_igv() +
+  scale_x_continuous(expand = c(0,0)) +
+  scale_y_discrete(limit = levels) +
+  labs(x = "Number of Genes", y = "Rice Accessions",
+       fill = "Subgroup",
+       title = "Number of genes in rice accessions") +
+  theme_prism() 
+
+export::graph2tif(file = "results/step4_seq_related/wrky基因数量统计_subgroup.tif",
+                  width = 8,
+                  height = 8,
+                  dpi = 500)
+
+
+# CH分组
+# 导入序列亚分组
+library(ggsci)
+library(ggprism)
+
+df_subgroup = data.table::fread("results/step4_seq_related/seq_subgroup_CH_type.txt", header = TRUE) %>% 
+  dplyr::mutate(id = stringr::str_replace(id,">",""))
+for (i in 1:nrow(df_subgroup)) {
+  df_subgroup$id[i] = stringr::str_split(df_subgroup$id[i]," ")[[1]][1]
+}
+df_subgroup_plot = merge(df_subgroup, df, by.x = "id", by.y = "V1") %>% 
+  dplyr::mutate(temp2 = paste0(species, subgroup)) %>% 
+  dplyr::mutate(temp2 = stringr::str_replace_all(temp2," ","")) %>% 
+  dplyr::group_by(temp2) %>% 
+  dplyr::mutate(n = n(),
+                sum = sum(n)) %>% 
+  dplyr::ungroup() %>% 
+  dplyr::select(species, subgroup, n, temp2, sum)
+
+df_subgroup_plot = df_subgroup_plot[!duplicated(df_subgroup_plot$temp2),] %>% 
+  dplyr::arrange(sum)
+df_subgroup_plot$species = factor(df_subgroup_plot$species, levels = unique(df_subgroup_plot$species))
+
+table(df$species) %>% 
+  as.data.frame() %>% 
+  dplyr::mutate(mean = mean(Freq)) %>% 
+  dplyr::arrange(Freq) -> df.spe
+
+levels = unique(df.spe$Var1)
+
+ggplot(df_subgroup_plot, aes(x = n, y = species, fill = subgroup)) +
+  geom_bar(stat = "identity", width = 0.8) +
+  geom_vline(xintercept = 105, color = "white") +
+  scale_fill_igv() +
+  scale_x_continuous(expand = c(0,0)) +
+  scale_y_discrete(limit = levels) +
+  labs(x = "Number of Genes", y = "Rice Accessions",
+       fill = "Subgroup",
+       title = "Number of genes in rice accessions") +
+  theme_prism() 
+
+export::graph2tif(file = "results/step4_seq_related/wrky基因数量统计_subgroup_CH.tif",
+                  width = 8,
+                  height = 8,
+                  dpi = 500)
+
+
+
+# 统计每个species的数量
+library(ggprism)
+library(ggplot2)
+
+table(df$species) %>% 
+  as.data.frame() %>% 
+  dplyr::mutate(mean = mean(Freq)) %>% 
+  dplyr::arrange(Freq) -> df.spe
+  
+df.spe$Var1 = factor(df.spe$Var1, levels = unique(df.spe$Var1))
+
+all_spe = df.spe %>% 
+  dplyr::rename(pfam = Freq) %>% 
+  dplyr::select(1:2)
+
+ggplot(df.spe) +
+  geom_bar(aes(y = Var1, x = Freq), stat = "identity", width = 0.8) +
+  geom_text(aes(x = Freq + 2, y = Var1, label = Freq)) +
+  geom_vline(xintercept = 97, linetype = "dashed", color = "red") +
+  geom_vline(xintercept = 110, color = "white") +
+  scale_x_continuous(expand = c(0,0)) +
+  labs(x = "Number of Genes", y = "Rice Accessions", title = "Number of genes in rice accessions") +
+  theme_prism()
+
+export::graph2tif(file = "results/step2_hmm_search/wrky基因数量统计_pfam.tif",
+                  width = 8,
+                  height = 8,
+                  dpi = 500)
+
+# planttdb indica
+rm(list = ls())
+
+df = data.table::fread("results/step3_planttfdb_rebuild_and_research/planttfdb.indica.unique.id.txt", header = FALSE) %>% 
+  dplyr::mutate(species = "")
+
+spe = dir("data/geneIDandmRNAid/geneID2mRNAid/")
+
+species = c()
+
+for (i in spe) {
+  temp = stringr::str_split(i,"\\.")[[1]][1]
+  species = c(species, temp)
+}
+
+for (i in 1:nrow(df)) {
+  if (stringr::str_sub(df$V1[i],1,3) == "LOC") {
+    df$species[i] = "Nipponbare"
+  }else{
+    for (j in species) {
+      if (grepl(j,df$V1[i])) {
+        df$species[i] = j
+      }
+    }
+  }
+}
+
+
+# 统计每个species的数量
+
+table(df$species) %>% 
+  as.data.frame() %>% 
+  dplyr::mutate(mean = mean(Freq)) %>% 
+  dplyr::arrange(Freq) -> df.spe
+
+df.spe$Var1 = factor(df.spe$Var1, levels = unique(df.spe$Var1))
+
+
+all_spe = merge(all_spe, df.spe[,c(1,2)], by = "Var1")
+colnames(all_spe)[3] = "PlantTFDB_indica"
+
+ggplot(df.spe) +
+  geom_bar(aes(y = Var1, x = Freq), stat = "identity", width = 0.8) +
+  geom_text(aes(x = Freq + 3, y = Var1, label = Freq)) +
+  geom_vline(xintercept = 97, linetype = "dashed") +
+  geom_vline(xintercept = 110, color = "white") +
+  scale_x_continuous(expand = c(0,0)) +
+  labs(x = "Number of Genes", y = "Rice Accessions", title = "Number of genes in rice accessions (PlantTFDB indica)") +
+  theme_prism()
+
+export::graph2tif(file = "results/step2_hmm_search/wrky基因数量统计_PlantTFDB indica.tif",
+                  width = 8,
+                  height = 8,
+                  dpi = 500)
+
+
+
+
+# planttdb japonica
+rm(list = ls())
+
+df = data.table::fread("results/step3_planttfdb_rebuild_and_research/planttfdb.japonica.unique.id.txt", header = FALSE) %>% 
+  dplyr::mutate(species = "")
+
+spe = dir("data/geneIDandmRNAid/geneID2mRNAid/")
+
+species = c()
+
+for (i in spe) {
+  temp = stringr::str_split(i,"\\.")[[1]][1]
+  species = c(species, temp)
+}
+
+for (i in 1:nrow(df)) {
+  if (stringr::str_sub(df$V1[i],1,3) == "LOC") {
+    df$species[i] = "Nipponbare"
+  }else{
+    for (j in species) {
+      if (grepl(j,df$V1[i])) {
+        df$species[i] = j
+      }
+    }
+  }
+}
+
+
+# 统计每个species的数量
+
+table(df$species) %>% 
+  as.data.frame() %>% 
+  dplyr::mutate(mean = mean(Freq)) %>% 
+  dplyr::arrange(Freq) -> df.spe
+
+df.spe$Var1 = factor(df.spe$Var1, levels = unique(df.spe$Var1))
+
+all_spe = merge(all_spe, df.spe[,c(1,2)], by = "Var1")
+colnames(all_spe)[4] = "PlantTFDB_japonica"
+
+ggplot(df.spe) +
+  geom_bar(aes(y = Var1, x = Freq), stat = "identity", width = 0.8) +
+  geom_text(aes(x = Freq + 3, y = Var1, label = Freq)) +
+  geom_vline(xintercept = 97, linetype = "dashed") +
+  geom_vline(xintercept = 110, color = "white") +
+  scale_x_continuous(expand = c(0,0)) +
+  labs(x = "Number of Genes", y = "Rice Accessions", title = "Number of genes in rice accessions (PlantTFDB japonica)") +
+  theme_prism()
+
+export::graph2tif(file = "results/step2_hmm_search/wrky基因数量统计_PlantTFDB japonica.tif",
+                  width = 8,
+                  height = 8,
+                  dpi = 500)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+rm(list = ls())
+
+library(ggplot2)
+library(ggsci)
+
+df1 = data.table::fread("results/LOC_Os02g08440表达量-南方科技大学网站/LOC_OS02G08440_biotic_expression_levels.csv", header = TRUE)
+
+ggplot(df1, aes(x = biotic, y = LOC_OS02G08440, fill = biotic)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.1) +
+  coord_flip() +
+  scale_fill_igv() +
+  scale_y_continuous(breaks = seq(0,300,50)) +
+  labs(title = "Expression Level under Biotic Stress") +
+  theme_bw() +
+  theme(legend.position = "none",
+        plot.title = element_text(hjust = 0.5),
+        axis.title = element_blank(),
+        axis.text = element_text(colour = "black", size = 12)) -> p1
+p1
+
+# 非生物胁迫
+df2 = data.table::fread("results/LOC_Os02g08440表达量-南方科技大学网站/LOC_OS02G08440_abiotic_expression_levels.csv" ,header = TRUE)
+
+ggplot(df2, aes(x = abiotic, y = LOC_OS02G08440, fill = abiotic)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.1) +
+  coord_flip() +
+  scale_fill_igv() +
+  scale_y_continuous(breaks = seq(0,400,50)) +
+  labs(title = "Expression Level under Abiotic Stress") +
+  theme_bw() +
+  theme(legend.position = "none",
+        plot.title = element_text(hjust = 0.5),
+        axis.title = element_blank(),
+        axis.text = element_text(colour = "black", size = 12)) -> p2
+p2
+
+
+# 不同部位
+df3 = data.table::fread("results/LOC_Os02g08440表达量-南方科技大学网站/LOC_OS02G08440_tissue_expression.csv", header = TRUE)
+
+ggplot(df3, aes(x = `Tissue/Satge`, y = LOC_OS02G08440, fill = `Tissue/Satge`)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.1) +
+  coord_flip() +
+  scale_fill_igv() +
+  scale_y_continuous(breaks = seq(0,400,50)) +
+  labs(title = "Expression Level at Different Tissue") +
+  theme_bw() +
+  theme(legend.position = "none",
+        plot.title = element_text(hjust = 0.5),
+        axis.title = element_blank(),
+        axis.text = element_text(colour = "black", size = 12)) -> p3
+p3
+
+
+# 不同部位
+df4 = data.table::fread("results/LOC_Os02g08440表达量-南方科技大学网站/LOC_OS02G08440_tissue_expression (1).csv", header = TRUE)
+ggplot(df4, aes(x = `Tissue/Satge`, y = LOC_OS02G08440, fill = `Tissue/Satge`)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.1) +
+  coord_flip() +
+  scale_fill_igv() +
+  scale_y_continuous(breaks = seq(0,300,50)) +
+  labs(title = "Expression Level at Different Development Stage") +
+  theme_bw() +
+  theme(legend.position = "none",
+        plot.title = element_text(hjust = 0.5),
+        axis.title = element_blank(),
+        axis.text = element_text(colour = "black", size = 12)) -> p4
+p4
+
+# combian
+p1 + p2 + p3 + p4 + patchwork::plot_layout(ncol = 2)
+
+export::graph2tif(file = "results/各种表达量.tif",
+                  width = 20, height = 15, dpi = 500)
+
+cowplot::plot_grid(p1, p2, p3, p4,
+                   labels = LETTERS[1:4],
+                   label_size = 25,
+                   ncol = 2)
+export::graph2tif(file = "results/各种表达量.tif",
+                  width = 20, height = 15, dpi = 500)
+
+
+
+# 全部表达量
+df_id = data.table::fread("rna-seq/stress/results/DEGs.wrky.txt", header = TRUE) %>% 
+  dplyr::select(row) %>% 
+  dplyr::distinct_all() %>% 
+  dplyr::mutate(row = stringr::str_replace(row, "Os","OS"),
+                row = stringr::str_replace(row, "g","G"))
+
+group = data.table::fread("rna-seq/group.csv", header = TRUE) %>% 
+  dplyr::filter(Cultivar == "Nipponbare") %>% 
+  dplyr::select(Sample) %>% 
+  dplyr::distinct_all()
+
+df = data.table::fread("rna-seq/rice_fpkmAllData.csv", header = TRUE) %>% 
+  dplyr::filter(Sample %in% df_id$row) %>% 
+  tibble::column_to_rownames(var = "Sample") %>% 
+  dplyr::select(group$Sample) %>% 
+  pheatmap:::scale_rows()
+
+df[df>3.17] = 3.17
+
+
+pheatmap::pheatmap(df,
+                   show_rownames = FALSE,
+                   show_colnames = FALSE,
+                   color=colorRampPalette(c("navy", "white", "red"))(50))
+
+export::graph2tif(file = "rna-seq/pprd.wrky.all.tif",
+                  width = 10, height = 10, dpi = 500)
+
+
+# cor 
+df = data.table::fread("rna-seq/rice_fpkmAllData.csv", header = TRUE) %>% 
+  dplyr::filter(Sample %in% df_id$row) %>% 
+  tibble::column_to_rownames(var = "Sample") %>% 
+  dplyr::select(group$Sample) %>% 
+  t() %>% 
+  as.data.frame()
+
+WGCNA::corAndPvalue(df)$cor %>% 
+  as.matrix() %>% 
+  corrplot::corrplot()
+
+library(linkET)
+library(ggtext)
+
+correlate(df) %>% 
+  as_md_tbl() %>% 
+  qcorrplot(type = "lower") +
+  geom_square() +
+  scale_fill_gradientn(colours = RColorBrewer::brewer.pal(11, "RdBu")) +
+  theme(axis.text = element_blank(),
+        axis.title = element_blank())
+
+# 
+df.cor = WGCNA::corAndPvalue(df)$cor %>% 
+  as.data.frame() %>% 
+  dplyr::mutate(temp = 1) %>% 
+  reshape2::melt(id.vars = "temp") 
+
+
+library(tidyverse)
+
+df = NULL
+
+dir_fastq = dir("/home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/stress/data/rawdata/fastq/")
+
+sample = data.frame()
+
+for (i in dir_fastq) {
+  fa_temp = stringr::str_split(i, "\\.")
+  len = length(stringr::str_split(fa_temp[[1]][1],"_")[[1]])
+  if (len == 1) {
+    df_temp = data.frame(sra = stringr::str_split(fa_temp[[1]][1],"_")[[1]][1],
+                         group = "single")
+    
+  }else{
+    df_temp = data.frame(sra = stringr::str_split(fa_temp[[1]][1],"_")[[1]][1],
+                         group = "pair")
+    
+  }
+  
+  sample = rbind(sample, df_temp)
+}
+
+sample = sample %>% 
+  dplyr::filter(!duplicated(sra))
+
+
+for (i in 1:nrow(sample)) {
+  
+  m = sample$sra[i]
+  
+  if (sample$group[i] == "single") {
+    comm = paste0("hisat2 --new-summary -p 75 -x /home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/stress/data/genome/index/nip.index",
+                  " -U /home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/stress/data/rawdata/fastq/",m,".fastq",
+                  " -S /home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/stress/mapping/",m,".sam") %>% 
+      as.data.frame()
+    df = rbind(df, comm)
+  }else{
+    comm = paste0("hisat2 --new-summary -p 75 -x /home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/stress/data/genome/index/nip.index",
+                  " -1 /home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/stress/data/rawdata/fastq/",m,"_1.fastq",
+                  " -2 /home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/stress/data/rawdata/fastq/",m,"_2.fastq",
+                  " -S /home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/stress/mapping/",m,".sam") %>% 
+      as.data.frame()
+    df = rbind(df, comm)
+  }
+  
+  comm1 = paste0("samtools sort -@ 70 -o /home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/stress/bam/",m,".sorted.bam", 
+                 " /home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/stress/mapping/",m,".sam") %>% 
+    as.data.frame()
+  df = rbind(df, comm1)
+  
+  comm2 = paste0("samtools index /home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/stress/bam/",m,".sorted.bam") %>% 
+    as.data.frame()
+  df = rbind(df, comm2)
+  
+  comm3 = paste0("htseq-count -f bam -r name -i gene_id -s reverse -t exon -m intersection-nonempty",
+                 ' /home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/stress/bam/' , m, '.sorted.bam', 
+                 ' /home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/stress/data/genome/Nip.gtf',
+                 ' > ',  '/home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/stress/counts/',  m, '.count.txt') %>% 
+    as.data.frame()
+  
+  if (sample$group[i] == "single") {
+    comm4 = paste0("featureCounts -t exon -g gene_id -a /home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/stress/data/genome/Nip.gtf -o ",
+                   "/home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/stress/counts/",m,".counts.featurecounts.txt ",
+                   "/home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/stress/bam/",m,".sorted.bam")  %>% 
+      as.data.frame()
+    df = rbind(df, comm4)
+  }else{
+    comm4 = paste0("featureCounts -p -t exon -g gene_id -a /home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/stress/data/genome/Nip.gtf -o ",
+                   "/home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/stress/counts/",m,".counts.featurecounts.txt ",
+                   "/home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/stress/bam/",m,".sorted.bam")  %>% 
+      as.data.frame()
+    df = rbind(df, comm4)
+  }
+  
+  comm5 = paste0("cut -f 1,7 /home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/stress/counts/",m,".counts.featurecounts.txt | grep -v '^#' > ", 
+                 "/home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/stress/counts/",m,".counts.txt") %>% 
+    as.data.frame()
+  df = rbind(df, comm5)
+}
+
+
+data.table::fwrite(df,
+                   "/home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/stress/mapping.sam2bam.and.featurecounts.2.sh", 
+                   col.names = FALSE, row.names = FALSE, quote = FALSE)
+
+
+
+
+
+
+
+
+
+
+
+
+import os
+
+f_pep = open("/opt/publicdata/refgenome/rice/33pan_genone/all.pep.fasta","r")
+
+f_new = open("/home/lixiang/project/33PanGenomeWRKYFamily/data/33pangenome/all.pep.new.fasta","w")
+
+f_read = f_pep.readlines()
+
+for line in f_read:
+  if " predict " in line:
+    line = line.replace(" predict ","")
+  else:
+    line = line
+  
+  if "LOC_" in line:
+    line = line.split(" ")[0] + "\n"
+  else:
+    line = line
+  
+  line = line.replace("P0","T0")
+  
+  f_new.write(line)
+  
+f_new.close()
+
+library(tidyverse)
+
+dir_fastq = dir("/home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/data/fastq/")
+
+df = NULL
+
+for (i in dir_fastq) {
+  if (i == "code") {
+    next
+  }else{
+    j = stringr::str_split(i, "\\.")[[1]][1]
+    comm = paste0("hisat2 --new-summary -p 70 -x data/genome/index/ir64.index -U data/fastq/",
+                  i," -S mapping/",j,".sam"," R > mapping.log/", j,".mapping.log  2>&1") %>% 
+      as.data.frame()
+    df = rbind(df, comm)
+  }
+}
+
+
+data.table::fwrite(df,
+                   "/home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/run.mapping.sh", 
+                   col.names = FALSE, row.names = FALSE)
+
+library(tidyverse)
+
+df = NULL
+
+dir_fastq = dir("/home/lixiang/project/acuce/rna-seq-15_69_87/data/raw_data/")
+
+sample_id = c()
+for (i in dir_fastq) {
+  if (i == "md5.txt") {
+    next
+  }else{
+    j = stringr::str_sub(i, 1,8)
+    sample_id = c(sample_id, j)
+  }
+}
+
+
+sample_id = unique(sample_id)
+
+for (i in sample_id) {
+  if (i == "md5.txt") {
+    next
+  }else{
+    comm = paste0("hisat2 --new-summary -p 75 -x /opt/publicdata/refgenome/rice/acuce/index/hisat2/acuce.index",
+                  " -1 /home/lixiang/project/acuce/rna-seq-15_69_87/data/raw_data/",i,"_1.fq.gz",
+                  " -2 /home/lixiang/project/acuce/rna-seq-15_69_87/data/raw_data/",i,"_2.fq.gz",
+                  " -S /home/lixiang/project/acuce/rna-seq-15_69_87/mapping/",i,".sam") %>% 
+      as.data.frame()
+    df = rbind(df, comm)
+  
+    comm1 = paste0("samtools sort -@ 70 -o /home/lixiang/project/acuce/rna-seq-15_69_87/bam/",i,".sorted.bam", 
+                   " /home/lixiang/project/acuce/rna-seq-15_69_87/mapping/",i,".sam") %>% 
+      as.data.frame()
+    df = rbind(df, comm1)
+    
+    comm2 = paste0("samtools index /home/lixiang/project/acuce/rna-seq-15_69_87/bam/",i,".sorted.bam") %>% 
+      as.data.frame()
+    df = rbind(df, comm2)
+    
+    comm3 = paste0("htseq-count -f sam -r name -i gene_id -s reverse -t exon -m intersection-nonempty",
+                   ' /home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/mapping/' , i, #, '.sorted.bam' , 
+                   ' /home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/data/genome/ir64.gtf',
+                   ' > ',  '/home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/counts/',  j, '.count.txt') %>% 
+      as.data.frame()
+    
+    comm4 = paste0("featureCounts -p -t exon -g gene_id -a /opt/publicdata/refgenome/rice/acuce/annotation/acuce.gtf -o ",
+                   "/home/lixiang/project/acuce/rna-seq-15_69_87/counts/",i,".counts.featurecounts.txt ",
+                   "/home/lixiang/project/acuce/rna-seq-15_69_87/bam/",i,".sorted.bam")  %>% 
+      as.data.frame()
+    df = rbind(df, comm4)
+    
+    comm5 = paste0("cut -f 1,7 /home/lixiang/project/acuce/rna-seq-15_69_87/counts/",i,".counts.featurecounts.txt | grep -v '^#' > ", 
+                   "/home/lixiang/project/acuce/rna-seq-15_69_87/counts/",i,".counts.txt") %>% 
+      as.data.frame()
+    df = rbind(df, comm5)
+  }
+}
+
+
+data.table::fwrite(df,
+                   "/home/lixiang/project/acuce/rna-seq-15_69_87/mapping.sam2bam.and.featurecounts.sh", 
+                   col.names = FALSE, row.names = FALSE, quote = FALSE)
+
+
+
+
+
+
+
+
+
+
+
+
+rm(list = ls())
+
+library(ggplotify)
+
+df_id = data.table::fread("results/step1_get_id/id2species.txt", header = TRUE) %>% 
+  dplyr::filter(species == "IR64") %>% 
+  dplyr::mutate(geneid = stringr::str_replace(geneid,".T01",""))
+
+df_sample_info = data.table::fread("rna-seq/data/sample.info.txt", header = TRUE)
+
+df_tpm = data.table::fread("rna-seq/TPM.csv", header = TRUE) %>% 
+  dplyr::rename(geneid = V1) %>% 
+  dplyr::filter(geneid %in% df_id$geneid) %>% 
+  as.data.frame()
+
+rownames(df_tpm) = df_tpm$geneid
+df_tpm = df_tpm[,-1] 
+
+
+df_ann = df_sample_info %>% 
+  dplyr::mutate(group3 = as.character(group3)) %>% 
+  as.data.frame()
+rownames(df_ann) = df_ann$id
+df_ann = df_ann[,-1]
+
+df_tpm %>% 
+  pheatmap:::scale_rows() %>% 
+  pheatmap::pheatmap(show_rownames = FALSE,
+                     show_colnames = FALSE,
+                     cluster_cols = FALSE,
+                     annotation_col = df_ann) ->p 
+p
+p1 = ggplotify::as.ggplot(p)
+p1
+export::graph2tif(p1, file = "rna-seq/wrky.heatmap.tif",width = 10, height = 8, dpi = 500)
+rm(list = ls())
+
+df = data.table::fread("rna-seq/mapping.rate.stat", header = FALSE)
+rm(list = ls())
+
+df_id = data.table::fread("results/step2_hmm_search/unique.id.new.wrky.txt",header = FALSE) %>% 
+  dplyr::mutate(temp = stringr::str_sub(V1, 3, 6)) %>% 
+  dplyr::filter(temp == "IR64") %>% 
+  dplyr::mutate(gene = stringr::str_sub(V1, 1, 20)) %>% 
+  dplyr::select(gene)
+
+df_smaple = data.table::fread("rna-seq/warmnighttemp/data/sample.info.txt", header = TRUE) %>% 
+  dplyr::filter(group1 %in% c("Control"))
+
+df_fpkm = data.table::fread("rna-seq/warmnighttemp/FPKM.csv", header = TRUE) %>% 
+  dplyr::filter(V1 %in% df_id$gene) %>% 
+  dplyr::mutate(V1 = stringr::str_sub(V1, 1, 17)) %>% 
+  tibble::column_to_rownames(var = "V1") %>% 
+  dplyr::select(df_smaple$id)
+
+
+df_ann_col = df_smaple %>% 
+  dplyr::select(1,4) %>% 
+  tibble::column_to_rownames(var = "id") %>% 
+  dplyr::rename(Time = group3) %>% 
+  dplyr::mutate(Time = factor(Time, levels = c(0,3.5,7, 10.5, 12, 14, 17.5, 23)))
+
+
+df_fpkm %>% 
+  pheatmap:::scale_rows() %>% 
+  t() %>% 
+  pheatmap::pheatmap(annotation_row = df_ann_col,
+                     show_colnames = FALSE,
+                     show_rownames = FALSE,
+                     cellwidth = 5,
+                     cellheight = 5) -> p.temp
+p = ggplotify::as.ggplot(p.temp)
+
+ggsave(p, filename = "results/step7_rna-seq/夜间高温CK时序.png",
+       width = 12, height = 6, dpi = 500)
+
+
+export::graph2ppt(p, file = "results/step7_rna-seq/夜间高温CK时序.pptx",
+                  width = 12, height = 6, center = TRUE)
+
+
+
+
+
+rm(list = ls())
+
+library(tidyverse)
+
+df = NULL
+
+dir_fastq = dir("/home/lixiang/project/acuce/rna-seq-15_69_87/data/raw_data/")
+
+sample = c()
+
+for (i in dir_fastq) {
+  sample_temp = stringr::str_sub(i,1,8)
+  sample = c(sample,sample_temp)
+}
+
+sample = unique(sample) %>% 
+  setdiff("md5.txt")
+
+for (i in sample) {
+  
+  if (stringr::str_sub(i, 1, 3) == "A87") {
+    comm = paste0("hisat2 --new-summary -p 70 -x", 
+                  " /home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/stress/data/genome/index/nip.index",
+                  " --min-intronlen 20 --max-intronlen 10000 --dta ",
+                  " -1 /home/lixiang/project/acuce/rna-seq-15_69_87/data/raw_data/",i,"_1.fq.gz",
+                  " -2 /home/lixiang/project/acuce/rna-seq-15_69_87/data/raw_data/",i,"_2.fq.gz",
+                  " -S /home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/plant-plant/mapping/",i,".sam") %>% 
+      as.data.frame()
+    df = rbind(df, comm)
+    
+    comm1 = paste0("samtools sort -@ 70 -o /home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/plant-plant/bam/",i,".sorted.bam", 
+                   " /home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/plant-plant/mapping/",i,".sam") %>% 
+      as.data.frame()
+    df = rbind(df, comm1)
+    
+    comm2 = paste0("samtools index /home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/plant-plant/bam/",i,".sorted.bam") %>% 
+      as.data.frame()
+    df = rbind(df, comm2)
+    
+    
+    comm2_1 = paste0("stringtie ","/home/lixiang/project/acuce/lincRNA_test/bam/",i,".sorted.bam -G ",
+                     "/home/publicdata/refgenome/rice/acuce/annotation/YLG.gff3  -j 3 -o ",
+                     "/home/lixiang/project/acuce/lincRNA_test/stringtie/",i,".gtf") %>% 
+      as.data.frame()
+    
+    #df = rbind(df, comm2_1)
+    
+    if (i == "A87_87_3343") {
+      comm = paste0("stringtie --merge -F 0.5 -T 0.5 -G ",
+                    "/home/publicdata/refgenome/rice/acuce/annotation/YLG.gff3 " ,
+                    paste0("/home/lixiang/project/lincRNA/stringtie/",sample,".gtf"),
+                    " > Osat.merged.gtf")
+    }
+  }
+}
+
+
+data.table::fwrite(df,
+                   "/home/lixiang/project/33PanGenomeWRKYFamily/rna-seq/plant-plant/mapping.sh", 
+                   col.names = FALSE, row.names = FALSE, quote = FALSE)
+ 
+
+
+
+
+
+
+
+
+
+
+
+rm(list = ls())
+
+library(tidyverse)
+
+df = data.table::fread("results/step6_blast_and_function/blast.res.txt", header = FALSE) %>% 
+  dplyr::filter(V3 == 100)
+
+
+for (i in unique(df$V2)) {
+  print(i)
+}
+
+
+library(ggmsa)
+
+ggmsa("results/step6_blast_and_function/gene.pep.aligned.fa",color = "Chemistry_AA") +
+  geom_seqlogo() + 
+  #geom_msaBar()
+  theme
+
+export::graph2png(file = "results/step6_blast_and_function/比对结果可视化.png",
+                  width = 60, height = 20, dpi = 500)
+#北京组学生物科技有限公司
+#学习perl语言：
+#perl入门：https://study.163.com/course/introduction/1006448023.htm?share=1&shareId=1030291076
+#perl高级：https://study.163.com/course/introduction/1004833023.htm?share=1&shareId=1030291076
+
+use Getopt::Long;
+use strict;
+use Cwd qw(abs_path getcwd);
+
+
+
+
+my %opts;
+
+GetOptions (\%opts,"list=s","od=s","colline=s","gff=s","name=s"); 
+
+
+
+my $od=$opts{od};
+$od||=getcwd;
+$od=abs_path($od);
+unless(-d $od){	mkdir $od;}
+
+
+
+#############gff for cir text###########3
+
+open (IN,"$opts{gff}") || die "open $opts{gff} failed\n";
+my %gff;
+my @info;
+my $chr;
+my $start;
+my $end;
+my $gene;
+while(<IN>){
+	chomp;
+	next if /^#/;
+	
+	@info=split(/\t/,$_);
+	
+	next unless($info[2]=~/gene/);
+	($gene)=($info[8]=~/ID=([^;]+)/);
+	
+	$chr=$info[0];
+	$start=$info[3];
+	$end=$info[4];
+	$gff{$gene}=$chr."\t".$start."\t".$end;
+}
+
+close(IN);
+
+
+
+####################### list ##############
+
+
+my %list;
+my $pair;
+my $Len;
+my $Agene;
+my $Bgene;
+my %text;
+
+open (IN,"$opts{list}") || die "open $opts{list} failed\n";
+open (OUT,">$od/$opts{name}.txt") || die "open $od/$opts{name}.txt failed\n";
+open (OUTL,">$od/$opts{name}.link.txt") || die "open $od/$opts{name}.link.txt failed\n";
+
+while(<IN>){
+	chomp;
+	@info=split(/\t/,$_);
+	$Len = @info;
+	print $Len;
+	
+	my $len=1;
+	while($len<$Len){
+			$pair=$info[$len];   ####�ų�0��Ҳ���ǵ�һ��λ�ã��˴�Ϊ����
+			($Agene,$Bgene)=split(/:/,$pair,2);
+			print OUT $Agene."\t".$Bgene."\n";
+			
+	        if(exists $gff{$Agene} && exists $gff{$Bgene}){ #######ʵ���Ͽ϶����ڣ�
+	        	
+	        	print OUTL $gff{$Agene}."\t".$gff{$Bgene}."\n";
+	        	
+	        	$text{$Agene}=$gff{$Agene}."\t".$Agene;   ##��ȥ�ؿ���ֱ�ӿ�ʼ���
+	        	$text{$Bgene}=$gff{$Bgene}."\t".$Bgene;
+	        	
+	        }
+	        $len=$len+1;
+	}
+
+}
+close(IN);
+close(OUT);
+
+
+##ȥ���ظ�ID��text
+open (OUT,">$od/$opts{name}.text.txt") || die "open $od/$opts{name}.text.txt failed\n";
+my $loc;
+while(($gene,$loc)=each %text){
+	print OUT $loc."\n";
+}
+close(OUT);
+
+######### collinearity for genome block colline #####
+
+open (IN,"$opts{colline}") || die "open $opts{colline} failed\n";
+open (OUT,">$od/genome.blocklink.txt") || die "open $od/genome.blocklink.txt failed\n";
+open (OUTA,">$od/genome.align.blocklink.txt") || die "open $od/genome.align.blocklink.txt failed\n";
+my $n;
+my $align;
+my $colline;
+my %block;
+my $Agene1S;
+my $AgeneNE;
+my $Bgene1S;
+my $BgeneNE;
+my $Achr;
+my $Bchr;
+while(<IN>){
+	chomp;
+	if(/^#/){
+		if(/Alignment/){
+			$n=1;
+			$_=~/Alignment ([^:]*)/;
+			$align="Alignment".$1;
+		}
+		next;
+	}
+	
+	$colline=$_;
+	@info=split("\t",$colline);
+	$Agene=$info[1];
+	$Bgene=$info[2];
+	
+	if(exists $gff{$Agene} && exists $gff{$Bgene} ){
+	
+	    if($n ==1 ){
+		
+		    ($chr,$start,$end)=split(/\t/,$gff{$Agene});
+	    	$Agene1S=$start;
+		    $Achr=$chr;
+		
+		    ($chr,$start,$end)=split(/\t/,$gff{$Bgene});
+		    $Bgene1S=$start;
+		    $Bchr=$chr;
+		
+	    }else{
+		
+				
+		    ($chr,$start,$end)=split(/\t/,$gff{$Agene});
+		    $AgeneNE=$end;
+		
+		    ($chr,$start,$end)=split(/\t/,$gff{$Bgene});
+		    $BgeneNE=$end;
+		
+	    }
+	}
+	$n=$n+1;
+	$block{$align}=$Achr."\t".$Agene1S."\t".$AgeneNE."\t".$Bchr."\t".$Bgene1S."\t".$BgeneNE;	
+		
+	
+}
+
+close(IN);
+
+my $block_info;
+
+while(($align,$block_info)=each %block){
+	print OUT $block_info."\n";
+	print OUTA $align."\t".$block_info."\n";
+}
+close(OUT);
+close(OUTA);
+
+
+
+
+
+
+#北京组学生物科技有限公司
+#学习perl语言：
+#perl入门：https://study.163.com/course/introduction/1006448023.htm?share=1&shareId=1030291076
+#perl高级：https://study.163.com/course/introduction/1004833023.htm?share=1&shareId=1030291076
+
+use Getopt::Long;
+use strict;
+use Cwd qw(abs_path getcwd);
+
+my %opts;
+
+GetOptions (\%opts,"list=s","od=s","colline=s","gff=s","name=s"); 
+
+my $od=$opts{od};
+$od||=getcwd;
+$od=abs_path($od);
+unless(-d $od){	mkdir $od;}
+
+
+
+#############gff for cir text###########3
+
+
+
+
+open (IN,"$opts{gff}") || die "open $opts{gff} failed\n";
+my %gff;
+my @info;
+my $chr;
+my $start;
+my $end;
+my $gene;
+while(<IN>){
+	chomp;
+	next if /^#/;
+	
+	@info=split(/\t/,$_);
+	
+	#next unless($info[2]=~/gene/);
+	#($gene)=($info[8]=~/ID=([^;]+)/);
+	
+	$gene=$info[1];
+	$chr=$info[0];
+	$start=$info[2];
+	$end=$info[3];
+	$gff{$gene}=$chr."\t".$start."\t".$end;
+}
+
+close(IN);
+
+
+
+####################### list ##############
+
+
+my %list;
+my $pair;
+my $Len;
+my $Agene;
+my $Bgene;
+my %text;
+
+open (IN,"$opts{list}") || die "open $opts{list} failed\n";
+open (OUT,">$od/$opts{name}.txt") || die "open $od/$opts{name}.txt failed\n";
+open (OUTL,">$od/$opts{name}.link.txt") || die "open $od/$opts{name}.link.txt failed\n";
+
+while(<IN>){
+	chomp;
+	@info=split(/\t/,$_);
+	$Len = @info;
+	print $Len;
+	
+	my $len=1;
+	while($len<$Len){
+			$pair=$info[$len];   ####�ų�0��Ҳ���ǵ�һ��λ�ã��˴�Ϊ����
+			($Agene,$Bgene)=split(/:/,$pair,2);
+			print OUT $Agene."\t".$Bgene."\n";
+			
+	        if(exists $gff{$Agene} && exists $gff{$Bgene}){ #######ʵ���Ͽ϶����ڣ�
+	        	
+	        	print OUTL $gff{$Agene}."\t".$gff{$Bgene}."\n";
+	        	
+	        	$text{$Agene}=$gff{$Agene}."\t".$Agene;   ##��ȥ�ؿ���ֱ�ӿ�ʼ���
+	        	$text{$Bgene}=$gff{$Bgene}."\t".$Bgene;
+	        	
+	        }
+	        $len=$len+1;
+	}
+
+}
+close(IN);
+close(OUT);
+
+
+##ȥ���ظ�ID��text
+open (OUT,">$od/$opts{name}.text.txt") || die "open $od/$opts{name}.text.txt failed\n";
+my $loc;
+while(($gene,$loc)=each %text){
+	print OUT $loc."\n";
+}
+close(OUT);
+
+######### collinearity for genome block colline #####
+
+open (IN,"$opts{colline}") || die "open $opts{colline} failed\n";
+open (OUT,">$od/genome.blocklink.txt") || die "open $od/genome.blocklink.txt failed\n";
+open (OUTA,">$od/genome.align.blocklink.txt") || die "open $od/genome.align.blocklink.txt failed\n";
+my $n;
+my $align;
+my $colline;
+my %block;
+my $Agene1S;
+my $AgeneNE;
+my $Bgene1S;
+my $BgeneNE;
+my $Achr;
+my $Bchr;
+while(<IN>){
+	chomp;
+	if(/^#/){
+		if(/Alignment/){
+			$n=1;
+			$_=~/Alignment ([^:]*)/;
+			$align="Alignment".$1;
+		}
+		next;
+	}
+	
+	$colline=$_;
+	@info=split("\t",$colline);
+	$Agene=$info[1];
+	$Bgene=$info[2];
+	
+	if(exists $gff{$Agene} && exists $gff{$Bgene} ){
+	
+	    if($n ==1 ){
+		
+		    ($chr,$start,$end)=split(/\t/,$gff{$Agene});
+	    	$Agene1S=$start;
+		    $Achr=$chr;
+		
+		    ($chr,$start,$end)=split(/\t/,$gff{$Bgene});
+		    $Bgene1S=$start;
+		    $Bchr=$chr;
+		
+	    }else{
+		
+				
+		    ($chr,$start,$end)=split(/\t/,$gff{$Agene});
+		    $AgeneNE=$end;
+		
+		    ($chr,$start,$end)=split(/\t/,$gff{$Bgene});
+		    $BgeneNE=$end;
+		
+	    }
+	}
+	$n=$n+1;
+	$block{$align}=$Achr."\t".$Agene1S."\t".$AgeneNE."\t".$Bchr."\t".$Bgene1S."\t".$BgeneNE;	
+		
+	
+}
+
+close(IN);
+
+my $block_info;
+
+while(($align,$block_info)=each %block){
+	print OUT $block_info."\n";
+	print OUTA $align."\t".$block_info."\n";
+}
+close(OUT);
+close(OUTA);
+
+
+
+
+
+
+#北京组学生物科技有限公司
+#学习perl语言：
+#perl入门：https://study.163.com/course/introduction/1006448023.htm?share=1&shareId=1030291076
+#perl高级：https://study.163.com/course/introduction/1004833023.htm?share=1&shareId=1030291076
+
+
+die "perl $0 <hmmoutfile> <fa> <OUT> <E-value>" unless ( @ARGV == 4 );
+use Math::BigFloat;
+use Bio::SeqIO;
+use Bio::Seq;
+$in = Bio::SeqIO->new(
+	-file   => "$ARGV[1]",
+	-format => 'Fasta'
+);
+$out = Bio::SeqIO->new(
+	-file   => ">$ARGV[2]",
+	-format => 'Fasta'
+);
+my %keep = ();
+open IN, "$ARGV[0]" or die "$! ; can't open file:  $ARGV[0]\n";
+
+while (<IN>) {
+	chomp;
+	next if /^#/;
+
+	my @a = split /\s+/;
+	next if $a[6] > $ARGV[3];
+	my @b = ( $a[17], $a[18] );  #结构域在序列中的位置
+	my $keys = $a[0];
+	if ($a[9]==2 and !exists $keep{$keys} ) { #提取序列中第一个结构域所在的序列
+		$keep{$keys} = \@b;#结构域在序列中的位置
+
+	}
+}
+close(IN);
+while ( my $seq = $in->next_seq() ) {
+	my ( $id, $sequence, $desc ) = ( $seq->id, $seq->seq, $seq->desc );
+
+	if ( exists $keep{$id} ) {
+		my $subseq = $seq->subseq( $keep{$id}->[0], $keep{$id}->[1]); #截取序列
+		my $newseqobj = Bio::Seq->new(
+			-seq  => $subseq,
+			-desc => "domain:$keep{$id}[0]-$keep{$id}[1]",
+			-id   => "$id-2",
+		);
+
+		$out->write_seq($newseqobj);
+	}
+}
+$in->close();
+$out->close();
+#北京组学生物科技有限公司
+#学习perl语言：
+#perl入门：https://study.163.com/course/introduction/1006448023.htm?share=1&shareId=1030291076
+#perl高级：https://study.163.com/course/introduction/1004833023.htm?share=1&shareId=1030291076
+
+
+die "perl $0 <hmmoutfile> <fa> <OUT> <E-value>" unless ( @ARGV == 4 );
+use Math::BigFloat;
+use Bio::SeqIO;
+use Bio::Seq;
+$in = Bio::SeqIO->new(
+	-file   => "$ARGV[1]",
+	-format => 'Fasta'
+);
+$out = Bio::SeqIO->new(
+	-file   => ">$ARGV[2]",
+	-format => 'Fasta'
+);
+my %keep = ();
+open IN, "$ARGV[0]" or die "$! ; can't open file:  $ARGV[0]\n";
+
+while (<IN>) {
+	chomp;
+	next if /^#/;
+
+	my @a = split /\s+/;
+	next if $a[6] > $ARGV[3];
+	my @b = ( $a[17], $a[18] );  #结构域在序列中的位置
+	my $keys = $a[0];
+	if ($a[9]==1 and !exists $keep{$keys} ) { #提取序列中第一个结构域所在的序列
+		$keep{$keys} = \@b;#结构域在序列中的位置
+
+	}
+}
+close(IN);
+while ( my $seq = $in->next_seq() ) {
+	my ( $id, $sequence, $desc ) = ( $seq->id, $seq->seq, $seq->desc );
+
+	if ( exists $keep{$id} ) {
+		my $subseq = $seq->subseq( $keep{$id}->[0], $keep{$id}->[1]); #截取序列
+		my $newseqobj = Bio::Seq->new(
+			-seq  => $subseq,
+			-desc => "domain:$keep{$id}[0]-$keep{$id}[1]",
+			-id   => "$id",
+		);
+
+		$out->write_seq($newseqobj);
+	}
+}
+$in->close();
+$out->close();
+#北京组学生物科技有限公司
+#学习perl语言：
+#perl入门：https://study.163.com/course/introduction/1006448023.htm?share=1&shareId=1030291076
+#perl高级：https://study.163.com/course/introduction/1004833023.htm?share=1&shareId=1030291076
+
+use strict;
+use Cwd qw(abs_path getcwd);
+use Getopt::Long;
+use Data::Dumper;
+
+die "perl $0 <gff> <outfile>" unless(@ARGV==2);
+my$gff=$ARGV[0];
+my%gene=();
+my%gene_region=();
+
+open IN,"$gff" or die "$!;can't open file:$gff\n";
+
+while(<IN>){
+	chomp;
+	next if (/^#/);
+	my@tmp=split(/\t/);
+
+	if($tmp[2] =~/^gene$/){
+		my($id)=($tmp[8]=~/ID=([^;]+)/);
+		$gene{$id}=[];
+		$gene_region{$id}="$tmp[0]\t$tmp[3]\t$tmp[4]\t$tmp[6]";
+	}
+	if($tmp[2] =~/^mRNA$/i or $tmp[2] =~/^transcript$/i){
+		my($id)=($tmp[8]=~/ID=([^;]+)/);
+		my($pid)=($tmp[8]=~/Parent=([^;]+)/);
+		
+
+		if(exists $gene{$pid}){
+			push @{$gene{$pid}},$id;
+		}else{
+			print "please check mRNA $id has gene ID \n";		
+		}
+
+	}
+}
+
+close(IN);
+
+open OUT ,">$ARGV[1]" or die "$!; can't open file $ARGV[1]\n";
+print OUT "#gene_ID\tchr\tstart\tend\tstrand\ttranscript_id\n";
+for my $id(keys %gene) {
+	print OUT "$id\t$gene_region{$id}\t".join("\t",sort  @{$gene{$id}})."\n";
+}
+	
+close(OUT);
+#北京组学生物科技有限公司
+#学习perl语言：
+#perl入门：https://study.163.com/course/introduction/1006448023.htm?share=1&shareId=1030291076
+#perl高级：https://study.163.com/course/introduction/1004833023.htm?share=1&shareId=1030291076
+
+print "perl $0   <id_list>  <data_file> <out_file>\n" and die unless(@ARGV==3);
+
+open IN,"$ARGV[0]" or die "$!; can't open file $ARGV[0]\n";
+
+my%t;
+my$head;
+while(<IN>){
+	chomp;
+	my@tmp=split(/\s+/);
+	
+	
+	$t{$tmp[0]}=1;
+}
+
+close(IN);
+
+open IN,"$ARGV[1]" or die "$!; can't open file $ARGV[1]\n";
+
+open OUT,">$ARGV[2]" or die "$!; can't open file $ARGV[2]\n";
+while(<IN>){
+	chomp;
+	if (/^#/){
+		print OUT "$_\n";
+		next ;
+	}
+
+	my@tmp=split(/\s+/);
+
+	if(exists $t{$tmp[0]}){
+		print OUT "$_\n";
+	}else{
+		#print  "$tmp[0]\n";
+	}
+}
+close(IN);
+
+close(OUT);
+#北京组学生物科技有限公司
+#学习perl语言：
+#perl入门：https://study.163.com/course/introduction/1006448023.htm?share=1&shareId=1030291076
+#perl高级：https://study.163.com/course/introduction/1004833023.htm?share=1&shareId=1030291076
+
+
+die "perl $0 <idlist> <fa> <OUT>" unless ( @ARGV == 3 );
+use Math::BigFloat;
+use Bio::SeqIO;
+use Bio::Seq;
+
+#读入蛋白序列
+$in = Bio::SeqIO->new(
+	-file   => "$ARGV[1]",
+	-format => 'Fasta'
+);
+
+#输出序列：
+$out = Bio::SeqIO->new(
+	-file   => ">$ARGV[2]",
+	-format => 'Fasta'
+);
+
+#读取需要提取基因ID
+my %keep = ();
+open IN, "$ARGV[0]" or die "$!; can't open file $ARGV[0]\n";
+
+while (<IN>) {
+	chomp;
+	next if /^#/;
+	my @a = split /\s+/;
+	$keep{$a[0]}=1;
+}
+close(IN);
+
+#输出想要的基因的序列
+while ( my $seq = $in->next_seq() ) {
+	my ( $id, $sequence, $desc ) = ( $seq->id, $seq->seq, $seq->desc );
+
+	if ( exists $keep{$id} ) {
+		$out->write_seq($seq);
+	}
+}
+$in->close();
+$out->close();#北京组学生物科技有限公司
+#学习perl语言：
+#perl入门：https://study.163.com/course/introduction/1006448023.htm?share=1&shareId=1030291076
+#perl高级：https://study.163.com/course/introduction/1004833023.htm?share=1&shareId=1030291076
+
+use Getopt::Long;
+my %opts;
+use Data::Dumper;
+GetOptions( \%opts, "in1=s", "in2=s", "out=s", "h" );
+if (   !defined( $opts{in1} )
+	|| !defined( $opts{in2} )
+	|| !defined( $opts{out} )
+	|| defined( $opts{h} ) )
+{
+	&USAGE;
+}
+open( IN1, "$opts{in1}" )  || die "open $opts{in1} failed\n";
+open( IN2, "$opts{in2}" )  || die "open $opts{in2} failed\n";
+open( OUT, ">$opts{out}" ) || die "open $opts{out} failed\n";
+my %gffs;
+while (<IN1>) {
+	chomp;
+	next if /^#/;
+	my @b = split/\s+/, $_;
+	$gffs{$b[0]} = 1;
+}
+
+#print Dumper(\%gffs);
+while (<IN2>) {
+	chomp;
+	next if (/^#/);
+	my @a = split /\t/, $_;
+	next if $a[2]=~/exon/i;
+	if ($a[2] =~/^mRNA$/i or $a[2] =~/^transcript$/i ) {
+		($id1) =  ($a[8] =~ m/ID=([^;]*)/);
+
+	}elsif ( $a[2] =~/^CDS$/i or $a[2] =~/utr/i ) {
+
+		($id1) =  ($a[8] =~ m/Parent=([^;]*)/);
+	}else{
+		next;
+	}
+
+	if ( exists $gffs{$id1} ) {
+		print OUT "$_\n";
+	}
+
+}
+close OUT;
+close IN1;
+close IN2;
+
+sub USAGE {
+	print "usage: perl $0 -in1  mRNA_id.txt -in2  genome.gff3  -out gene_location.txt ";
+	exit;
+}
+#北京组学生物科技有限公司
+#学习perl语言：
+#perl入门：https://study.163.com/course/introduction/1006448023.htm?share=1&shareId=1030291076
+#perl高级：https://study.163.com/course/introduction/1004833023.htm?share=1&shareId=1030291076
+
+use Getopt::Long;
+my %opts;
+use Data::Dumper;
+GetOptions (\%opts,"in1=s","in2=s","out=s","h"); 
+if (! defined($opts{in1}) ||! defined($opts{in2})||! defined($opts{out}) || defined($opts{h})){
+	&USAGE;
+}
+open (IN1,"$opts{in1}") || die "open $opts{in1} failed\n";
+open (IN2,"$opts{in2}") || die "open $opts{in2} failed\n";
+open (OUT,">$opts{out}") || die "open $opts{out} failed\n";
+my%gffs;
+while (<IN1>) {
+	next if (/^#/);
+	chomp;
+	  my@b=split,$_;
+	  $keys= $b[0];
+
+	  $values= $b[0];
+
+      $gffs{$keys} = $values;
+ 
+}
+
+while (<IN2>) {
+	 chomp;
+          my @a=split /\t/,$_;
+		 #if ($a[2] eq "gene") { 
+		 if ($a[2] eq "mRNA") {                 
+		 	 $a[8]=~ m/ID=([^;]*)/;             #注意这里匹配的ID信息
+		 	 	$id1=$1;
+		
+		  if ( exists  $gffs{$id1} ) {
+		
+	  	 print OUT "$gffs{$id1}\t$a[0]\t$a[3]\t$a[4]\t$a[6]\n";
+		  }
+		 }
+		 
+		 }
+close OUT;
+close IN1;
+close IN2;
+
+sub USAGE {
+       print "usage: perl $0 -in1  gene_id.txt -in2  genome.gff3  -out gene_location.txt ";
+	exit;
+}#北京组学生物科技有限公司
+#学习perl语言：
+#perl入门：https://study.163.com/course/introduction/1006448023.htm?share=1&shareId=1030291076
+#perl高级：https://study.163.com/course/introduction/1004833023.htm?share=1&shareId=1030291076
+
+use Getopt::Long;
+my %opts;
+use Data::Dumper;
+GetOptions( \%opts, "in1=s","in2=s", "out=s", "h" );
+if ( !defined( $opts{in1} ) || !defined( $opts{out} ) || defined( $opts{h} ) ) {
+	&USAGE;
+}
+
+open( IN2, "$opts{in2}" )  || die "open $opts{in2} failed\n";
+
+
+my %mRNAID=();
+
+while(<IN2>){
+	chomp;
+	my@tmp=split(/\s+/);
+	$mRNAID{$tmp[0]}=1;
+
+}
+
+#print Dumper(\%mRNAID);
+close(IN2);
+
+
+
+
+open( IN1, "$opts{in1}" )  || die "open $opts{in1} failed\n";
+open( OUT, ">$opts{out}" ) || die "open $opts{out} failed\n";
+
+
+
+
+while (<IN1>) {
+	chomp;
+	my @a = split /\t/, $_;
+	if ($a[2] =~/^mRNA$/i or $a[2] =~/^transcript$/i ) {
+		#if ($a[2] eq "mRNA") {
+		$a[8] =~ m/ID=([^;]*)/;    #注意这里匹配ID的信息
+		$id = $1;
+		if (exists $mRNAID{$id}) {
+			print OUT "$a[0]\t$a[3]\t$a[4]\t$id\t$a[7]\t$a[6]\n";
+		}
+
+	}
+
+}
+close OUT;
+close IN1;
+
+
+sub USAGE {
+	print "usage: perl $0 -in1  gff  -in2 id.txt -out gene_location.bed ";
+	exit;
+}
+#北京组学生物科技有限公司
+#学习perl语言：
+#perl入门：https://study.163.com/course/introduction/1006448023.htm?share=1&shareId=1030291076
+#perl高级：https://study.163.com/course/introduction/1004833023.htm?share=1&shareId=1030291076
+
+die "perl $0 <mRNAid.list>  <gff3>  <out.gff>" unless(@ARGV==3);
+use Data::Dumper;
+
+
+open IN,"$ARGV[0]" or die "$!; can't open file $ARGV[0]\n";
+
+open OUT,">$ARGV[2]" or die "$!; can't open file $ARGV[2]\n";
+
+my %mRNAID=();
+
+while(<IN>){
+	chomp;
+	my@tmp=split(/\s+/);
+	$mRNAID{$tmp[0]}=1;
+
+}
+
+#print Dumper(\%mRNAID);
+close(IN);
+
+open IN,"$ARGV[1]" or die "$!; can't open file $ARGV[1]\n";
+while(<IN>){
+	chomp;
+
+	next if /^#/;
+	@tmp=split(/\t/);
+	#if($tmp[2]=~/gene/ && $tmp[0]=~/^\d+/ && $tmp[-1]=~/protein_coding/){
+	if($tmp[2] =~/^mRNA$/i or $tmp[2] =~/^transcript$/i){
+		my($id)=($tmp[-1]=~/ID=([^;]+)/);
+		if (exists $mRNAID{$id}) {
+			print OUT "$tmp[0]\t$id\t$tmp[3]\t$tmp[4]\n";
+		}
+		
+	}
+}
+
+close(IN);
+close(OUT);
+# coding:utf-8
+'''
+北京组学生物科技有限公司
+author huangls
+date 2020.04.20
+version 1.0
+学习python课程：https://study.163.com/course/introduction/1209531837.htm?share=1&shareId=1030291076
+'''
+from Bio.PDB import *
+import sys,os
+cwd = os.getcwd()
+if(len(sys.argv)==1):
+    print("Please input pdb id.")
+    print("Use example:")
+    print("\tpython %s %s %s"%(__file__,"1FAT","..."))
+    sys.exit(0)
+
+pdb_codes=[]
+
+pdb_codes=sys.argv[1:]
+print(pdb_codes)
+pdbl = PDBList()
+#pdbl.retrieve_pdb_file("1FAT")
+for i in pdb_codes:
+    #print("get %s "%i)
+    pdbl.retrieve_pdb_file( i,  pdir=cwd)#北京组学生物科技有限公司
+#学习perl语言：
+#perl入门：https://study.163.com/course/introduction/1006448023.htm?share=1&shareId=1030291076
+#perl高级：https://study.163.com/course/introduction/1004833023.htm?share=1&shareId=1030291076
+
+die "perl $0 <genome.fa> <weizhi.txt> <OUT> " unless(@ARGV==3 );
+use Math::BigFloat;
+use Bio::SeqIO;
+use Bio::Seq;
+$in = Bio::SeqIO -> new(-file => "$ARGV[0]",
+                                  -format => 'Fasta');
+$out = Bio::SeqIO -> new(-file => ">$ARGV[2]",
+                                  -format => 'Fasta');
+my %keep=() ;
+open IN,"$ARGV[0]" or die "$! open file $ARGV[0] failed";
+my%ref=();
+while ( my $seq = $in->next_seq() ) {
+     my($id,$sequence,$desc)=($seq->id,$seq->seq,$seq->desc);
+     
+         $ref{$id}=$seq;
+
+}
+
+$in->close();
+
+open IN,"$ARGV[1]" or die "$! open file $ARGV[1] failed";
+while (<IN>) {
+		chomp;
+		next if /^#/;
+		my @a= split /\t/;
+		my$seq=0;
+		if(exists $ref{$a[1]}){
+			$seq=$ref{$a[1]};
+		}else{
+			print "chromosome $a[1] not in reference file\n";
+			next;
+		}
+		
+		print "$a[1]";
+     if( $a[4]  eq "-" ){
+		      $start=  $a[3]+1;
+			  $end=$a[3]+1500;
+			  if($end>$seq->length){
+              	print "Note: $seq->id: upstream don't have enough sequence to cut for $a [0] and skiped\n";
+              	next;
+
+			  }
+
+              my$seq_string=$seq->subseq($start,$end);
+              my$newseqobj1=Bio::Seq -> new(-seq => $seq_string,
+				-id => "$a[0]"
+               ) ;
+     	       my$reseq = $newseqobj1 ->revcom();
+     	       $out->write_seq($reseq);      	
+     }elsif ( $a[4]  eq "+" ){
+              $start=  $a[2]-1500;
+              if ($start<0){
+              	print "Note: $seq->id: upstream don't have enough sequence to cut for $a[0] and skiped\n";
+              	next;
+              }
+			  $end=$a[2]-1;
+
+               my$seq_string=$seq->subseq($start,$end);
+           
+               my$newseqobj1=Bio::Seq -> new(-seq => $seq_string,
+               -id => "$a[0]"
+                   
+               ) ;
+     	      
+     	       $out->write_seq($newseqobj1);          
+     }
+
+}
+close (IN);
+$in->close();
+$out->close();
+#北京组学生物科技有限公司
+#学习perl语言：
+#perl入门：https://study.163.com/course/introduction/1006448023.htm?share=1&shareId=1030291076
+#perl高级：https://study.163.com/course/introduction/1004833023.htm?share=1&shareId=1030291076
+
+use Data::Dumper;
+use Getopt::Long;
+use strict;
+use Cwd qw(abs_path getcwd);
+my %opts;
+
+GetOptions (\%opts,"id=s","tandem=s","od=s","name=s"); 
+
+
+if (! defined($opts{id}) ||! defined($opts{tandem})||! defined($opts{name}) || defined($opts{h})){
+	&USAGE;
+}
+
+sub USAGE {
+	
+	
+       print "perl $0  -id gene_family.id  -tandem gene.tandem  -name gene_famil -od ./\n";
+	exit;
+}
+
+
+my $od=$opts{od};
+$od||=getcwd;
+$od=abs_path($od);
+unless(-d $od){    mkdir $od;}
+
+####get target gene id
+
+my $gene;
+my @info;
+my %hashG;
+open (IN,"$opts{id}") || die "open $opts{id} failed\n";
+while(<IN>){
+    chomp;
+    @info=split(/\s+/,$_);
+    $gene=$info[0];
+    $hashG{$gene}=$gene;
+}
+close(IN);
+
+
+#######select tandem
+
+
+my $Agene;
+my $Bgene;
+open(OUT,">$od/$opts{name}.tandem")||die "open $od/$opts{name}.tandem failed\n";
+open (IN,"$opts{tandem}") || die "open $opts{tandem} failed\n";
+while(<IN>){
+    chomp;
+    @info=split(/,/,$_);
+    $Agene=$info[0];
+    $Bgene=$info[1];
+    if(exists $hashG{$Agene} && exists $hashG{$Bgene}){
+        print OUT $Agene."\t".$Bgene."\n";
+    }
+
+}
+close(IN);
+close(OUT);#!/usr/bin/Rscript
+############################################################################
+#北京组学生物科技有限公司
+#author huangls
+#date 2021.03.16
+#version 1.0
+#学习R课程：
+#R 语言入门与基础绘图：
+# https://study.163.com/course/introduction/1209073807.htm?share=1&shareId=1030291076
+#R 语言绘图ggplot2等等：
+# https://study.163.com/course/introduction/1006149012.htm?share=1&shareId=1030291076
+
+###############################################################################################
+
+library("argparse")
+parser <- ArgumentParser(description='plot geneExp heatmap')
+
+parser$add_argument( "-i", "--input", type="character",required=T,
+		help="input gene expreesion matrix data ,[required]",
+		metavar="filepath")
+parser$add_argument("-s", "--showrownames", action='store_true',
+		help="whether show  rownames [optional, default: False]")
+parser$add_argument( "-c", "--color", type="character",nargs='+',required=F,default=c("blue", "white", "red"),
+		help="color map of heatmap, give three color [default=c('blue', 'white', 'red')",
+		metavar="color")
+
+parser$add_argument( "-o", "--outdir", type="character", default=getwd(),
+		help="output file directory [default cwd]",
+		metavar="outdir")
+parser$add_argument("-n", "--name", type="character", default="heatmap",
+		help="out file name prefix [default heatmap]",
+		metavar="prefix")
+parser$add_argument( "-H", "--height", type="double", default=8,
+		help="the height of pic   inches  [default 8]",
+		metavar="height")
+parser$add_argument("-W", "--width", type="double", default=5,
+		help="the width of pic   inches [default 5]",
+		metavar="width")
+
+opt <- parser$parse_args()
+
+if( !file.exists(opt$outdir) ){
+	if( !dir.create(opt$outdir, showWarnings = FALSE, recursive = TRUE) ){
+		stop(paste("dir.create failed: outdir=",opt$outdir,sep=""))
+	}
+}
+
+library(pheatmap)
+
+#-----------------------------------------------------------------
+# reading data
+#-----------------------------------------------------------------
+df<-read.table(opt$input,sep="\t",row.names=1,header = TRUE,check.names=FALSE,comment.char="")
+
+#去除表达量全为零的行
+if(sum(rowSums(df)==0)>0){
+	print(c("去除在所有的样本中表达量都为0的基因:",rownames(df)[rowSums(df)==0]))
+
+	df=df[rowSums(df)!=0,]	
+}
+
+
+
+color_map<-colorRampPalette(opt$color)(100)
+#更多热图参数调整见：https://www.omicsclass.com/article/1162
+
+
+pdf(file=paste(opt$outdir,"/",opt$name,".pdf",sep=""), height=opt$height, width=opt$width)
+pheatmap(df,color=color_map,border=FALSE, 
+		scale="row",
+		show_colnames=TRUE,
+		show_rownames=opt$showrownames
+		)
+dev.off()
+png(filename=paste(opt$outdir,"/",opt$name,".png",sep=""), height=opt$height*300, width=opt$width*300, res=300, units="px")
+pheatmap(df,color=color_map,border=FALSE, 
+		scale="row",
+		show_rownames=opt$showrownames,
+		show_colnames=TRUE)
+dev.off()
+
+
+
+
+#北京组学生物科技有限公司
+#学习perl语言：
+#perl入门：https://study.163.com/course/introduction/1006448023.htm?share=1&shareId=1030291076
+#perl高级：https://study.163.com/course/introduction/1004833023.htm?share=1&shareId=1030291076
+
+use Getopt::Long;
+my %opts;
+use Data::Dumper;
+GetOptions (\%opts,"in1=s","in2=s","out=s","h"); 
+if (! defined($opts{in1}) ||! defined($opts{in2})||! defined($opts{out}) || defined($opts{h})){
+	&USAGE;
+}
+open (IN1,"$opts{in1}") || die "open $opts{in} failed\n";
+open (IN2,"$opts{in2}") || die "open $opts{ina} failed\n";
+open (OUT,">$opts{out}") || die "open $opts{out} failed\n";
+ my %cds_length;
+while(<IN1>){
+	chomp;
+	my @line = split("\t",$_);
+	$cds_length{$line[0]}= $line[1];
+	#print "$cds_length{$line[0]}\n";
+} 
+
+while( <IN2>){
+	
+		chomp($_);
+		my @line1 = split ("\t",$_);
+		#print @line1;
+		#print "\n";
+		my $max_length = $cds_length{$line1[0]} > $cds_length{$line1[1]} ? $cds_length{$line1[0]}:$cds_length{$line1[1]};
+		if(($line1[0] ne $line1[1]) && ($line1[2] > 70 )&& ($line1[3] > 0.70*$max_length)){
+			print OUT $_."\t$max_length\n";
+		
+		}
+		#print $cds_length1{$line1[0]};
+	
+}
+
+
+close(IN1);
+close(IN2);
+close(OUT);
+sub USAGE {
+       print "usage: perl $0 -in1 cds_length   -in2 result.txt -out shaixuan_result.txt";
+	exit;
+}#北京组学生物科技有限公司
+#学习perl语言：
+#perl入门：https://study.163.com/course/introduction/1006448023.htm?share=1&shareId=1030291076
+#perl高级：https://study.163.com/course/introduction/1004833023.htm?share=1&shareId=1030291076
+
+use strict;
+use Cwd qw(abs_path getcwd);
+use Getopt::Long;
+use Data::Dumper;
+
+
+die "perl $0 <gff> <outfile>" unless(@ARGV==2);
+
+
+
+my$gff=$ARGV[0];
+my%gene=();
+my%gene_region=();
+my%mRNA2Gene=();
+open IN,"$gff" or die "$!; can't open file $gff\n";
+open OUT ,">$ARGV[1]" or die "$!; can't open file $ARGV[1]\n";
+print OUT "#mRNA_ID\tgene_ID\tchr\tstart\tend\tstrand\n";
+while(<IN>){
+	chomp;
+	next if (/^#/);
+	my@tmp=split(/\t/);
+	if($tmp[2] =~/^gene$/){
+		my($id)=($tmp[8]=~/ID=([^;]+)/);
+		$gene{$id}=1;
+		$gene_region{$id}=[$tmp[0],$tmp[3],$tmp[4],$tmp[6]];
+		
+		
+		#print "gene:$id\n";
+		#my$gene_chr->{$id}=$tmp[0];
+	}
+	if($tmp[2] =~/^mRNA$/i or $tmp[2] =~/^transcript$/i){
+		my($id)=($tmp[8]=~/ID=([^;]+)/);
+		my($pid)=($tmp[8]=~/Parent=([^;]+)/);
+		print OUT "$id\t$pid\t";
+		
+		if(exists $gene{$pid}){
+			print OUT "$tmp[0]\t$tmp[3]\t$tmp[4]\t$tmp[6]\n";
+		}
+		#print "mRNA:$id\n";
+	}
+}
+
+close(IN);
+close(OUT);
+
+
+	
+
+###################################
+# 处理ID
+###################################
+
+# indica
+df_indica <- pac4xiang::fasta2df("results/step3_planttfdb_rebuild_and_research/wrky_planttfdb_indica.fas")
+
+for (i in 1:nrow(df_indica)) {
+  df_indica$id[i] <- stringr::str_split(df_indica$id[i], "\\|")[[1]][1] %>%
+    stringr::str_replace(">", "")
+}
+
+pac4xiang::df2fasta(df_indica) %>%
+  data.table::fwrite(
+    file = "results/step3_planttfdb_rebuild_and_research/wrky_planttfdb_indica.new.fas",
+    col.names = FALSE, row.names = FALSE, quote = FALSE
+  )
+
+
+# japonica
+df_japonica <- pac4xiang::fasta2df("results/step3_planttfdb_rebuild_and_research/wrky_planttfdb_japonica.fas")
+
+for (i in 1:nrow(df_japonica)) {
+  df_japonica$id[i] <- stringr::str_split(df_japonica$id[i], "\\|")[[1]][1] %>%
+    stringr::str_replace(">", "")
+}
+
+pac4xiang::df2fasta(df_japonica) %>%
+  data.table::fwrite(
+    file = "results/step3_planttfdb_rebuild_and_research/wrky_planttfdb_japonica.new.fas",
+    col.names = FALSE, row.names = FALSE, quote = FALSE
+  )
+
+# 比较三种方法得到的基因ID的异同
+
+library(ggvenn)
+
+geneid = data.table::fread("results/step1_get_id/mRNA2geneID.txt", header = TRUE) 
+
+df1 <- data.table::fread("results/step2_hmm_search/unique.id.txt", header = FALSE) %>% 
+  merge(geneid[,c(1,2)], by.x = "V1", by.y = "#mRNA_ID", all.x = TRUE) %>% 
+  dplyr::mutate(gene_ID = stringr::str_replace(gene_ID,"\\..{1,10}",""))
+
+df2 <- data.table::fread("results/step3_planttfdb_rebuild_and_research/planttfdb.indica.unique.id.txt", header = FALSE)  %>% 
+  merge(geneid[,c(1,2)], by.x = "V1", by.y = "#mRNA_ID", all.x = TRUE) %>% 
+  dplyr::mutate(gene_ID = stringr::str_replace(gene_ID,"\\..{1,10}",""))
+
+df3 <- data.table::fread("results/step3_planttfdb_rebuild_and_research/planttfdb.japonica.unique.id.txt", header = FALSE) %>% 
+  merge(geneid[,c(1,2)], by.x = "V1", by.y = "#mRNA_ID", all.x = TRUE) %>% 
+  dplyr::mutate(gene_ID = stringr::str_replace(gene_ID,"\\..{1,10}",""))
+
+df4 = data.table::fread("results/step8_glaberrima/first.domain.selected.txt", header = FALSE) %>% 
+  dplyr::select(V1) %>% 
+  dplyr::distinct_all() %>% 
+  dplyr::rename(gene = V1) %>% 
+  dplyr::mutate(gene = stringr::str_replace(gene,"\\..{1,10}","")) %>% 
+  dplyr::distinct_all()
+
+
+
+
+li <- list(
+  Pfam = df1$gene_ID,
+  O.japonica = df3$gene_ID,
+  O.indica = df2$gene_ID,
+  O.glaberrima = df4$gene
+)
+
+ggvenn(li, 
+       show_percentage = FALSE,
+       fill_color = c("#ff5900","#0d0dbb","#00b76d","#c5199e"),  
+       fill_alpha = 0.8,
+       set_name_color = "black",
+       set_name_size = 6,
+       text_color = "white",
+       text_size = 6
+       )
+export::graph2tif(file = "results/step3_planttfdb_rebuild_and_research/三种方法比较的韦恩图.tif",
+                  width = 8,
+                  height = 6,
+                  dpi = 500)
+
+export::graph2pdf(file = "results/step3_planttfdb_rebuild_and_research/三种方法比较的韦恩图.pdf",
+                  width = 8,
+                  height = 6)
+
+export::graph2ppt(file = "results/step3_planttfdb_rebuild_and_research/三种方法比较的韦恩图.pptx",
+                  width = 8, height = 6, center = TRUE)
+
+
+
+
+
+
+
+
+
+###################################
+# 处理ID
+###################################
+
+# indica
+df_indica <- pac4xiang::fasta2df("results/step3_planttfdb_rebuild_and_research/wrky_planttfdb_indica.fas")
+
+for (i in 1:nrow(df_indica)) {
+  df_indica$id[i] <- stringr::str_split(df_indica$id[i], "\\|")[[1]][1] %>%
+    stringr::str_replace(">", "")
+}
+
+pac4xiang::df2fasta(df_indica) %>%
+  data.table::fwrite(
+    file = "results/step3_planttfdb_rebuild_and_research/wrky_planttfdb_indica.new.fas",
+    col.names = FALSE, row.names = FALSE, quote = FALSE
+  )
+
+
+# japonica
+df_japonica <- pac4xiang::fasta2df("results/step3_planttfdb_rebuild_and_research/wrky_planttfdb_japonica.fas")
+
+for (i in 1:nrow(df_japonica)) {
+  df_japonica$id[i] <- stringr::str_split(df_japonica$id[i], "\\|")[[1]][1] %>%
+    stringr::str_replace(">", "")
+}
+
+pac4xiang::df2fasta(df_japonica) %>%
+  data.table::fwrite(
+    file = "results/step3_planttfdb_rebuild_and_research/wrky_planttfdb_japonica.new.fas",
+    col.names = FALSE, row.names = FALSE, quote = FALSE
+  )
+
+
+# 比较三种方法得到的基因ID的异同
+
+library(ggvenn)
+
+geneid = data.table::fread("results/step1_get_id/mRNA2geneID.txt", header = TRUE) 
+
+df1 <- data.table::fread("results/step2_hmm_search/unique.id.txt", header = FALSE) %>% 
+  merge(geneid[,c(1,2)], by.x = "V1", by.y = "#mRNA_ID", all.x = TRUE)
+
+df2 <- data.table::fread("results/step3_planttfdb_rebuild_and_research/planttfdb.indica.unique.id.txt", header = FALSE)  %>% 
+  merge(geneid[,c(1,2)], by.x = "V1", by.y = "#mRNA_ID", all.x = TRUE)
+
+df3 <- data.table::fread("results/step3_planttfdb_rebuild_and_research/planttfdb.japonica.unique.id.txt", header = FALSE) %>% 
+  merge(geneid[,c(1,2)], by.x = "V1", by.y = "#mRNA_ID", all.x = TRUE)
+
+
+li <- list(
+  PlantTFDB_indica = df2$gene_ID,
+  PlantTFDB_japonica = df3$gene_ID,
+  Pfam = df1$gene_ID
+)
+
+ggvenn(li, 
+       show_percentage = FALSE,
+       fill_color = c("#ff5900","#0d0dbb","#00b76d"),  
+       fill_alpha = 0.8,
+       set_name_color = "black",
+       set_name_size = 6,
+       text_color = "white",
+       text_size = 6
+       )
+export::graph2tif(file = "results/step3_planttfdb_rebuild_and_research/三种方法比较的韦恩图.tif",
+                  width = 6,
+                  height = 6,
+                  dpi = 500)
+
+
+
+
+
+
+
+
+
+
+
+
+#北京组学生物科技有限公司
+#学习perl语言：
+#perl入门：https://study.163.com/course/introduction/1006448023.htm?share=1&shareId=1030291076
+#perl高级：https://study.163.com/course/introduction/1004833023.htm?share=1&shareId=1030291076
+
+die "perl $0 <mRNA2genefile> <idlist> <outfile>" unless(@ARGV==3);
+
+
+
+open IN ,"$ARGV[0]" or die "$!; can't open file $ARGV[0]\n";
+open OUT,">$ARGV[2]" or die "$!; can't open file $ARGV[2]\n";
+my%mRNA2geneData;
+my%mRNA2gene;
+
+my%gene2mRNA;
+
+print OUT "#geneID\tmRNAID\n";
+while (<IN>){
+	chomp;
+	if(/^#/){
+		
+		next;
+		
+	}
+
+	my@tmp=split(/\t/);
+	$mRNA2gene{$tmp[0]}=$tmp[1];
+	$mRNA2geneData{$tmp[0]}=$_;
+	$gene2mRNA{$tmp[1]}{$tmp[0]}=1;
+
+}
+
+close(IN);
+
+open IN,"$ARGV[1]" or die "$!";
+my%uniqGene;
+
+while (<IN>){
+	chomp;
+	next if /^#/;
+	my@tmp=split(/\s+/);
+	$uniqGene{$mRNA2gene{$tmp[0]}}{$tmp[0]}=1;
+
+}
+close(IN);
+
+
+for my$geneID(keys %uniqGene){
+	
+	my$transcriptIDNumber=scalar keys %{$uniqGene{$geneID}};
+	my@transIDs=keys %{$uniqGene{$geneID}};
+	
+	print OUT "$geneID\t".join("\t",sort{$a cmp $b} @transIDs)."\n";
+}
+
+close(OUT);
+#北京组学生物科技有限公司
+#学习perl语言：
+#perl入门：https://study.163.com/course/introduction/1006448023.htm?share=1&shareId=1030291076
+#perl高级：https://study.163.com/course/introduction/1004833023.htm?share=1&shareId=1030291076
+
+
+die "perl $0 <in>  <out>" unless(@ARGV==2);
+use Bio::SeqIO;
+use Bio::Seq;
+use Bio::Tools::SeqStats;
+use Bio::Tools::pICalculator;
+use Data::Dumper;
+#读入序列
+my $in = Bio::SeqIO->new(
+	-file   => "$ARGV[0]",
+	-format => 'Fasta'
+);
+
+open OUT,">$ARGV[1]" or die "$!; can't open file $ARGV[1]\n";
+print OUT "#ID\tlength\tMW(Da)\tpI\n";
+my $calc = Bio::Tools::pICalculator->new(-places => 2,-pKset => 'EMBOSS');
+
+
+#逐条读取序列并计算
+while ( my $seq = $in->next_seq() ) {
+	#my ( $id, $sequence, $desc ) = ( $seq->id, $seq->seq, $seq->desc );
+	my $weight = Bio::Tools::SeqStats ->get_mol_wt($seq);
+	$calc->seq($seq);
+    my $iep = $calc->iep;
+    print OUT sprintf("%s\t%s\t%s\t%s\n",
+                  $seq->id,
+                  $seq->length,
+                  "$weight->[0]",
+                  $iep);
+}
+$in->close();
+close(OUT);
+rm(list = ls())
+
+library(tidyverse)
+
+df = data.table::fread("results/step6_blast_and_function/blast.res.txt", header = FALSE) %>% 
+  dplyr::filter(V3 == 100)
+
+
+for (i in unique(df$V2)) {
+  print(i)
+}
+
+
+library(ggmsa)
+
+ggmsa("results/step6_blast_and_function/gene.pep.aligned.fa",color = "Chemistry_AA") +
+  geom_seqlogo() + 
+  #geom_msaBar()
+  theme
+
+export::graph2png(file = "results/step6_blast_and_function/比对结果可视化.png",
+                  width = 60, height = 20, dpi = 500)
+#北京组学生物科技有限公司
+#学习perl语言：
+#perl入门：https://study.163.com/course/introduction/1006448023.htm?share=1&shareId=1030291076
+#perl高级：https://study.163.com/course/introduction/1004833023.htm?share=1&shareId=1030291076
+
+use Getopt::Long;
+use strict;
+use Cwd qw(abs_path getcwd);
+
+
+
+
+my %opts;
+
+GetOptions (\%opts,"list=s","od=s","colline=s","gff=s","name=s"); 
+
+
+
+my $od=$opts{od};
+$od||=getcwd;
+$od=abs_path($od);
+unless(-d $od){	mkdir $od;}
+
+
+
+#############gff for cir text###########3
+
+open (IN,"$opts{gff}") || die "open $opts{gff} failed\n";
+my %gff;
+my @info;
+my $chr;
+my $start;
+my $end;
+my $gene;
+while(<IN>){
+	chomp;
+	next if /^#/;
+	
+	@info=split(/\t/,$_);
+	
+	next unless($info[2]=~/gene/);
+	($gene)=($info[8]=~/ID=([^;]+)/);
+	
+	$chr=$info[0];
+	$start=$info[3];
+	$end=$info[4];
+	$gff{$gene}=$chr."\t".$start."\t".$end;
+}
+
+close(IN);
+
+
+
+####################### list ##############
+
+
+my %list;
+my $pair;
+my $Len;
+my $Agene;
+my $Bgene;
+my %text;
+
+open (IN,"$opts{list}") || die "open $opts{list} failed\n";
+open (OUT,">$od/$opts{name}.txt") || die "open $od/$opts{name}.txt failed\n";
+open (OUTL,">$od/$opts{name}.link.txt") || die "open $od/$opts{name}.link.txt failed\n";
+
+while(<IN>){
+	chomp;
+	@info=split(/\t/,$_);
+	$Len = @info;
+	print $Len;
+	
+	my $len=1;
+	while($len<$Len){
+			$pair=$info[$len];   ####�ų�0��Ҳ���ǵ�һ��λ�ã��˴�Ϊ����
+			($Agene,$Bgene)=split(/:/,$pair,2);
+			print OUT $Agene."\t".$Bgene."\n";
+			
+	        if(exists $gff{$Agene} && exists $gff{$Bgene}){ #######ʵ���Ͽ϶����ڣ�
+	        	
+	        	print OUTL $gff{$Agene}."\t".$gff{$Bgene}."\n";
+	        	
+	        	$text{$Agene}=$gff{$Agene}."\t".$Agene;   ##��ȥ�ؿ���ֱ�ӿ�ʼ���
+	        	$text{$Bgene}=$gff{$Bgene}."\t".$Bgene;
+	        	
+	        }
+	        $len=$len+1;
+	}
+
+}
+close(IN);
+close(OUT);
+
+
+##ȥ���ظ�ID��text
+open (OUT,">$od/$opts{name}.text.txt") || die "open $od/$opts{name}.text.txt failed\n";
+my $loc;
+while(($gene,$loc)=each %text){
+	print OUT $loc."\n";
+}
+close(OUT);
+
+######### collinearity for genome block colline #####
+
+open (IN,"$opts{colline}") || die "open $opts{colline} failed\n";
+open (OUT,">$od/genome.blocklink.txt") || die "open $od/genome.blocklink.txt failed\n";
+open (OUTA,">$od/genome.align.blocklink.txt") || die "open $od/genome.align.blocklink.txt failed\n";
+my $n;
+my $align;
+my $colline;
+my %block;
+my $Agene1S;
+my $AgeneNE;
+my $Bgene1S;
+my $BgeneNE;
+my $Achr;
+my $Bchr;
+while(<IN>){
+	chomp;
+	if(/^#/){
+		if(/Alignment/){
+			$n=1;
+			$_=~/Alignment ([^:]*)/;
+			$align="Alignment".$1;
+		}
+		next;
+	}
+	
+	$colline=$_;
+	@info=split("\t",$colline);
+	$Agene=$info[1];
+	$Bgene=$info[2];
+	
+	if(exists $gff{$Agene} && exists $gff{$Bgene} ){
+	
+	    if($n ==1 ){
+		
+		    ($chr,$start,$end)=split(/\t/,$gff{$Agene});
+	    	$Agene1S=$start;
+		    $Achr=$chr;
+		
+		    ($chr,$start,$end)=split(/\t/,$gff{$Bgene});
+		    $Bgene1S=$start;
+		    $Bchr=$chr;
+		
+	    }else{
+		
+				
+		    ($chr,$start,$end)=split(/\t/,$gff{$Agene});
+		    $AgeneNE=$end;
+		
+		    ($chr,$start,$end)=split(/\t/,$gff{$Bgene});
+		    $BgeneNE=$end;
+		
+	    }
+	}
+	$n=$n+1;
+	$block{$align}=$Achr."\t".$Agene1S."\t".$AgeneNE."\t".$Bchr."\t".$Bgene1S."\t".$BgeneNE;	
+		
+	
+}
+
+close(IN);
+
+my $block_info;
+
+while(($align,$block_info)=each %block){
+	print OUT $block_info."\n";
+	print OUTA $align."\t".$block_info."\n";
+}
+close(OUT);
+close(OUTA);
+
+
+
+
+
+
+#北京组学生物科技有限公司
+#学习perl语言：
+#perl入门：https://study.163.com/course/introduction/1006448023.htm?share=1&shareId=1030291076
+#perl高级：https://study.163.com/course/introduction/1004833023.htm?share=1&shareId=1030291076
+
+use Getopt::Long;
+use strict;
+use Cwd qw(abs_path getcwd);
+
+my %opts;
+
+GetOptions (\%opts,"list=s","od=s","colline=s","gff=s","name=s"); 
+
+my $od=$opts{od};
+$od||=getcwd;
+$od=abs_path($od);
+unless(-d $od){	mkdir $od;}
+
+
+
+#############gff for cir text###########3
+
+
+
+
+open (IN,"$opts{gff}") || die "open $opts{gff} failed\n";
+my %gff;
+my @info;
+my $chr;
+my $start;
+my $end;
+my $gene;
+while(<IN>){
+	chomp;
+	next if /^#/;
+	
+	@info=split(/\t/,$_);
+	
+	#next unless($info[2]=~/gene/);
+	#($gene)=($info[8]=~/ID=([^;]+)/);
+	
+	$gene=$info[1];
+	$chr=$info[0];
+	$start=$info[2];
+	$end=$info[3];
+	$gff{$gene}=$chr."\t".$start."\t".$end;
+}
+
+close(IN);
+
+
+
+####################### list ##############
+
+
+my %list;
+my $pair;
+my $Len;
+my $Agene;
+my $Bgene;
+my %text;
+
+open (IN,"$opts{list}") || die "open $opts{list} failed\n";
+open (OUT,">$od/$opts{name}.txt") || die "open $od/$opts{name}.txt failed\n";
+open (OUTL,">$od/$opts{name}.link.txt") || die "open $od/$opts{name}.link.txt failed\n";
+
+while(<IN>){
+	chomp;
+	@info=split(/\t/,$_);
+	$Len = @info;
+	print $Len;
+	
+	my $len=1;
+	while($len<$Len){
+			$pair=$info[$len];   ####�ų�0��Ҳ���ǵ�һ��λ�ã��˴�Ϊ����
+			($Agene,$Bgene)=split(/:/,$pair,2);
+			print OUT $Agene."\t".$Bgene."\n";
+			
+	        if(exists $gff{$Agene} && exists $gff{$Bgene}){ #######ʵ���Ͽ϶����ڣ�
+	        	
+	        	print OUTL $gff{$Agene}."\t".$gff{$Bgene}."\n";
+	        	
+	        	$text{$Agene}=$gff{$Agene}."\t".$Agene;   ##��ȥ�ؿ���ֱ�ӿ�ʼ���
+	        	$text{$Bgene}=$gff{$Bgene}."\t".$Bgene;
+	        	
+	        }
+	        $len=$len+1;
+	}
+
+}
+close(IN);
+close(OUT);
+
+
+##ȥ���ظ�ID��text
+open (OUT,">$od/$opts{name}.text.txt") || die "open $od/$opts{name}.text.txt failed\n";
+my $loc;
+while(($gene,$loc)=each %text){
+	print OUT $loc."\n";
+}
+close(OUT);
+
+######### collinearity for genome block colline #####
+
+open (IN,"$opts{colline}") || die "open $opts{colline} failed\n";
+open (OUT,">$od/genome.blocklink.txt") || die "open $od/genome.blocklink.txt failed\n";
+open (OUTA,">$od/genome.align.blocklink.txt") || die "open $od/genome.align.blocklink.txt failed\n";
+my $n;
+my $align;
+my $colline;
+my %block;
+my $Agene1S;
+my $AgeneNE;
+my $Bgene1S;
+my $BgeneNE;
+my $Achr;
+my $Bchr;
+while(<IN>){
+	chomp;
+	if(/^#/){
+		if(/Alignment/){
+			$n=1;
+			$_=~/Alignment ([^:]*)/;
+			$align="Alignment".$1;
+		}
+		next;
+	}
+	
+	$colline=$_;
+	@info=split("\t",$colline);
+	$Agene=$info[1];
+	$Bgene=$info[2];
+	
+	if(exists $gff{$Agene} && exists $gff{$Bgene} ){
+	
+	    if($n ==1 ){
+		
+		    ($chr,$start,$end)=split(/\t/,$gff{$Agene});
+	    	$Agene1S=$start;
+		    $Achr=$chr;
+		
+		    ($chr,$start,$end)=split(/\t/,$gff{$Bgene});
+		    $Bgene1S=$start;
+		    $Bchr=$chr;
+		
+	    }else{
+		
+				
+		    ($chr,$start,$end)=split(/\t/,$gff{$Agene});
+		    $AgeneNE=$end;
+		
+		    ($chr,$start,$end)=split(/\t/,$gff{$Bgene});
+		    $BgeneNE=$end;
+		
+	    }
+	}
+	$n=$n+1;
+	$block{$align}=$Achr."\t".$Agene1S."\t".$AgeneNE."\t".$Bchr."\t".$Bgene1S."\t".$BgeneNE;	
+		
+	
+}
+
+close(IN);
+
+my $block_info;
+
+while(($align,$block_info)=each %block){
+	print OUT $block_info."\n";
+	print OUTA $align."\t".$block_info."\n";
+}
+close(OUT);
+close(OUTA);
+
+
+
+
+
+
+#北京组学生物科技有限公司
+#学习perl语言：
+#perl入门：https://study.163.com/course/introduction/1006448023.htm?share=1&shareId=1030291076
+#perl高级：https://study.163.com/course/introduction/1004833023.htm?share=1&shareId=1030291076
+
+
+die "perl $0 <hmmoutfile> <fa> <OUT> <E-value>" unless ( @ARGV == 4 );
+use Math::BigFloat;
+use Bio::SeqIO;
+use Bio::Seq;
+$in = Bio::SeqIO->new(
+	-file   => "$ARGV[1]",
+	-format => 'Fasta'
+);
+$out = Bio::SeqIO->new(
+	-file   => ">$ARGV[2]",
+	-format => 'Fasta'
+);
+my %keep = ();
+open IN, "$ARGV[0]" or die "$! ; can't open file:  $ARGV[0]\n";
+
+while (<IN>) {
+	chomp;
+	next if /^#/;
+
+	my @a = split /\s+/;
+	next if $a[6] > $ARGV[3];
+	my @b = ( $a[17], $a[18] );  #结构域在序列中的位置
+	my $keys = $a[0];
+	if ($a[9]==2 and !exists $keep{$keys} ) { #提取序列中第一个结构域所在的序列
+		$keep{$keys} = \@b;#结构域在序列中的位置
+
+	}
+}
+close(IN);
+while ( my $seq = $in->next_seq() ) {
+	my ( $id, $sequence, $desc ) = ( $seq->id, $seq->seq, $seq->desc );
+
+	if ( exists $keep{$id} ) {
+		my $subseq = $seq->subseq( $keep{$id}->[0], $keep{$id}->[1]); #截取序列
+		my $newseqobj = Bio::Seq->new(
+			-seq  => $subseq,
+			-desc => "domain:$keep{$id}[0]-$keep{$id}[1]",
+			-id   => "$id-2",
+		);
+
+		$out->write_seq($newseqobj);
+	}
+}
+$in->close();
+$out->close();
+#北京组学生物科技有限公司
+#学习perl语言：
+#perl入门：https://study.163.com/course/introduction/1006448023.htm?share=1&shareId=1030291076
+#perl高级：https://study.163.com/course/introduction/1004833023.htm?share=1&shareId=1030291076
+
+
+die "perl $0 <hmmoutfile> <fa> <OUT> <E-value>" unless ( @ARGV == 4 );
+use Math::BigFloat;
+use Bio::SeqIO;
+use Bio::Seq;
+$in = Bio::SeqIO->new(
+	-file   => "$ARGV[1]",
+	-format => 'Fasta'
+);
+$out = Bio::SeqIO->new(
+	-file   => ">$ARGV[2]",
+	-format => 'Fasta'
+);
+my %keep = ();
+open IN, "$ARGV[0]" or die "$! ; can't open file:  $ARGV[0]\n";
+
+while (<IN>) {
+	chomp;
+	next if /^#/;
+
+	my @a = split /\s+/;
+	next if $a[6] > $ARGV[3];
+	my @b = ( $a[17], $a[18] );  #结构域在序列中的位置
+	my $keys = $a[0];
+	if ($a[9]==1 and !exists $keep{$keys} ) { #提取序列中第一个结构域所在的序列
+		$keep{$keys} = \@b;#结构域在序列中的位置
+
+	}
+}
+close(IN);
+while ( my $seq = $in->next_seq() ) {
+	my ( $id, $sequence, $desc ) = ( $seq->id, $seq->seq, $seq->desc );
+
+	if ( exists $keep{$id} ) {
+		my $subseq = $seq->subseq( $keep{$id}->[0], $keep{$id}->[1]); #截取序列
+		my $newseqobj = Bio::Seq->new(
+			-seq  => $subseq,
+			-desc => "domain:$keep{$id}[0]-$keep{$id}[1]",
+			-id   => "$id",
+		);
+
+		$out->write_seq($newseqobj);
+	}
+}
+$in->close();
+$out->close();
+#北京组学生物科技有限公司
+#学习perl语言：
+#perl入门：https://study.163.com/course/introduction/1006448023.htm?share=1&shareId=1030291076
+#perl高级：https://study.163.com/course/introduction/1004833023.htm?share=1&shareId=1030291076
+
+use strict;
+use Cwd qw(abs_path getcwd);
+use Getopt::Long;
+use Data::Dumper;
+
+die "perl $0 <gff> <outfile>" unless(@ARGV==2);
+my$gff=$ARGV[0];
+my%gene=();
+my%gene_region=();
+
+open IN,"$gff" or die "$!;can't open file:$gff\n";
+
+while(<IN>){
+	chomp;
+	next if (/^#/);
+	my@tmp=split(/\t/);
+
+	if($tmp[2] =~/^gene$/){
+		my($id)=($tmp[8]=~/ID=([^;]+)/);
+		$gene{$id}=[];
+		$gene_region{$id}="$tmp[0]\t$tmp[3]\t$tmp[4]\t$tmp[6]";
+	}
+	if($tmp[2] =~/^mRNA$/i or $tmp[2] =~/^transcript$/i){
+		my($id)=($tmp[8]=~/ID=([^;]+)/);
+		my($pid)=($tmp[8]=~/Parent=([^;]+)/);
+		
+
+		if(exists $gene{$pid}){
+			push @{$gene{$pid}},$id;
+		}else{
+			print "please check mRNA $id has gene ID \n";		
+		}
+
+	}
+}
+
+close(IN);
+
+open OUT ,">$ARGV[1]" or die "$!; can't open file $ARGV[1]\n";
+print OUT "#gene_ID\tchr\tstart\tend\tstrand\ttranscript_id\n";
+for my $id(keys %gene) {
+	print OUT "$id\t$gene_region{$id}\t".join("\t",sort  @{$gene{$id}})."\n";
+}
+	
+close(OUT);
+#北京组学生物科技有限公司
+#学习perl语言：
+#perl入门：https://study.163.com/course/introduction/1006448023.htm?share=1&shareId=1030291076
+#perl高级：https://study.163.com/course/introduction/1004833023.htm?share=1&shareId=1030291076
+
+print "perl $0   <id_list>  <data_file> <out_file>\n" and die unless(@ARGV==3);
+
+open IN,"$ARGV[0]" or die "$!; can't open file $ARGV[0]\n";
+
+my%t;
+my$head;
+while(<IN>){
+	chomp;
+	my@tmp=split(/\s+/);
+	
+	
+	$t{$tmp[0]}=1;
+}
+
+close(IN);
+
+open IN,"$ARGV[1]" or die "$!; can't open file $ARGV[1]\n";
+
+open OUT,">$ARGV[2]" or die "$!; can't open file $ARGV[2]\n";
+while(<IN>){
+	chomp;
+	if (/^#/){
+		print OUT "$_\n";
+		next ;
+	}
+
+	my@tmp=split(/\s+/);
+
+	if(exists $t{$tmp[0]}){
+		print OUT "$_\n";
+	}else{
+		#print  "$tmp[0]\n";
+	}
+}
+close(IN);
+
+close(OUT);
+#北京组学生物科技有限公司
+#学习perl语言：
+#perl入门：https://study.163.com/course/introduction/1006448023.htm?share=1&shareId=1030291076
+#perl高级：https://study.163.com/course/introduction/1004833023.htm?share=1&shareId=1030291076
+
+
+die "perl $0 <idlist> <fa> <OUT>" unless ( @ARGV == 3 );
+use Math::BigFloat;
+use Bio::SeqIO;
+use Bio::Seq;
+
+#读入蛋白序列
+$in = Bio::SeqIO->new(
+	-file   => "$ARGV[1]",
+	-format => 'Fasta'
+);
+
+#输出序列：
+$out = Bio::SeqIO->new(
+	-file   => ">$ARGV[2]",
+	-format => 'Fasta'
+);
+
+#读取需要提取基因ID
+my %keep = ();
+open IN, "$ARGV[0]" or die "$!; can't open file $ARGV[0]\n";
+
+while (<IN>) {
+	chomp;
+	next if /^#/;
+	my @a = split /\s+/;
+	$keep{$a[0]}=1;
+}
+close(IN);
+
+#输出想要的基因的序列
+while ( my $seq = $in->next_seq() ) {
+	my ( $id, $sequence, $desc ) = ( $seq->id, $seq->seq, $seq->desc );
+
+	if ( exists $keep{$id} ) {
+		$out->write_seq($seq);
+	}
+}
+$in->close();
+$out->close();#北京组学生物科技有限公司
+#学习perl语言：
+#perl入门：https://study.163.com/course/introduction/1006448023.htm?share=1&shareId=1030291076
+#perl高级：https://study.163.com/course/introduction/1004833023.htm?share=1&shareId=1030291076
+
+use Getopt::Long;
+my %opts;
+use Data::Dumper;
+GetOptions( \%opts, "in1=s", "in2=s", "out=s", "h" );
+if (   !defined( $opts{in1} )
+	|| !defined( $opts{in2} )
+	|| !defined( $opts{out} )
+	|| defined( $opts{h} ) )
+{
+	&USAGE;
+}
+open( IN1, "$opts{in1}" )  || die "open $opts{in1} failed\n";
+open( IN2, "$opts{in2}" )  || die "open $opts{in2} failed\n";
+open( OUT, ">$opts{out}" ) || die "open $opts{out} failed\n";
+my %gffs;
+while (<IN1>) {
+	chomp;
+	next if /^#/;
+	my @b = split/\s+/, $_;
+	$gffs{$b[0]} = 1;
+}
+
+#print Dumper(\%gffs);
+while (<IN2>) {
+	chomp;
+	next if (/^#/);
+	my @a = split /\t/, $_;
+	next if $a[2]=~/exon/i;
+	if ($a[2] =~/^mRNA$/i or $a[2] =~/^transcript$/i ) {
+		($id1) =  ($a[8] =~ m/ID=([^;]*)/);
+
+	}elsif ( $a[2] =~/^CDS$/i or $a[2] =~/utr/i ) {
+
+		($id1) =  ($a[8] =~ m/Parent=([^;]*)/);
+	}else{
+		next;
+	}
+
+	if ( exists $gffs{$id1} ) {
+		print OUT "$_\n";
+	}
+
+}
+close OUT;
+close IN1;
+close IN2;
+
+sub USAGE {
+	print "usage: perl $0 -in1  mRNA_id.txt -in2  genome.gff3  -out gene_location.txt ";
+	exit;
+}
+#北京组学生物科技有限公司
+#学习perl语言：
+#perl入门：https://study.163.com/course/introduction/1006448023.htm?share=1&shareId=1030291076
+#perl高级：https://study.163.com/course/introduction/1004833023.htm?share=1&shareId=1030291076
+
+use Getopt::Long;
+my %opts;
+use Data::Dumper;
+GetOptions (\%opts,"in1=s","in2=s","out=s","h"); 
+if (! defined($opts{in1}) ||! defined($opts{in2})||! defined($opts{out}) || defined($opts{h})){
+	&USAGE;
+}
+open (IN1,"$opts{in1}") || die "open $opts{in1} failed\n";
+open (IN2,"$opts{in2}") || die "open $opts{in2} failed\n";
+open (OUT,">$opts{out}") || die "open $opts{out} failed\n";
+my%gffs;
+while (<IN1>) {
+	next if (/^#/);
+	chomp;
+	  my@b=split,$_;
+	  $keys= $b[0];
+
+	  $values= $b[0];
+
+      $gffs{$keys} = $values;
+ 
+}
+
+while (<IN2>) {
+	 chomp;
+          my @a=split /\t/,$_;
+		 #if ($a[2] eq "gene") { 
+		 if ($a[2] eq "mRNA") {                 
+		 	 $a[8]=~ m/ID=([^;]*)/;             #注意这里匹配的ID信息
+		 	 	$id1=$1;
+		
+		  if ( exists  $gffs{$id1} ) {
+		
+	  	 print OUT "$gffs{$id1}\t$a[0]\t$a[3]\t$a[4]\t$a[6]\n";
+		  }
+		 }
+		 
+		 }
+close OUT;
+close IN1;
+close IN2;
+
+sub USAGE {
+       print "usage: perl $0 -in1  gene_id.txt -in2  genome.gff3  -out gene_location.txt ";
+	exit;
+}#北京组学生物科技有限公司
+#学习perl语言：
+#perl入门：https://study.163.com/course/introduction/1006448023.htm?share=1&shareId=1030291076
+#perl高级：https://study.163.com/course/introduction/1004833023.htm?share=1&shareId=1030291076
+
+use Getopt::Long;
+my %opts;
+use Data::Dumper;
+GetOptions( \%opts, "in1=s","in2=s", "out=s", "h" );
+if ( !defined( $opts{in1} ) || !defined( $opts{out} ) || defined( $opts{h} ) ) {
+	&USAGE;
+}
+
+open( IN2, "$opts{in2}" )  || die "open $opts{in2} failed\n";
+
+
+my %mRNAID=();
+
+while(<IN2>){
+	chomp;
+	my@tmp=split(/\s+/);
+	$mRNAID{$tmp[0]}=1;
+
+}
+
+#print Dumper(\%mRNAID);
+close(IN2);
+
+
+
+
+open( IN1, "$opts{in1}" )  || die "open $opts{in1} failed\n";
+open( OUT, ">$opts{out}" ) || die "open $opts{out} failed\n";
+
+
+
+
+while (<IN1>) {
+	chomp;
+	my @a = split /\t/, $_;
+	if ($a[2] =~/^mRNA$/i or $a[2] =~/^transcript$/i ) {
+		#if ($a[2] eq "mRNA") {
+		$a[8] =~ m/ID=([^;]*)/;    #注意这里匹配ID的信息
+		$id = $1;
+		if (exists $mRNAID{$id}) {
+			print OUT "$a[0]\t$a[3]\t$a[4]\t$id\t$a[7]\t$a[6]\n";
+		}
+
+	}
+
+}
+close OUT;
+close IN1;
+
+
+sub USAGE {
+	print "usage: perl $0 -in1  gff  -in2 id.txt -out gene_location.bed ";
+	exit;
+}
+#北京组学生物科技有限公司
+#学习perl语言：
+#perl入门：https://study.163.com/course/introduction/1006448023.htm?share=1&shareId=1030291076
+#perl高级：https://study.163.com/course/introduction/1004833023.htm?share=1&shareId=1030291076
+
+die "perl $0 <mRNAid.list>  <gff3>  <out.gff>" unless(@ARGV==3);
+use Data::Dumper;
+
+
+open IN,"$ARGV[0]" or die "$!; can't open file $ARGV[0]\n";
+
+open OUT,">$ARGV[2]" or die "$!; can't open file $ARGV[2]\n";
+
+my %mRNAID=();
+
+while(<IN>){
+	chomp;
+	my@tmp=split(/\s+/);
+	$mRNAID{$tmp[0]}=1;
+
+}
+
+#print Dumper(\%mRNAID);
+close(IN);
+
+open IN,"$ARGV[1]" or die "$!; can't open file $ARGV[1]\n";
+while(<IN>){
+	chomp;
+
+	next if /^#/;
+	@tmp=split(/\t/);
+	#if($tmp[2]=~/gene/ && $tmp[0]=~/^\d+/ && $tmp[-1]=~/protein_coding/){
+	if($tmp[2] =~/^mRNA$/i or $tmp[2] =~/^transcript$/i){
+		my($id)=($tmp[-1]=~/ID=([^;]+)/);
+		if (exists $mRNAID{$id}) {
+			print OUT "$tmp[0]\t$id\t$tmp[3]\t$tmp[4]\n";
+		}
+		
+	}
+}
+
+close(IN);
+close(OUT);
+# coding:utf-8
+'''
+北京组学生物科技有限公司
+author huangls
+date 2020.04.20
+version 1.0
+学习python课程：https://study.163.com/course/introduction/1209531837.htm?share=1&shareId=1030291076
+'''
+from Bio.PDB import *
+import sys,os
+cwd = os.getcwd()
+if(len(sys.argv)==1):
+    print("Please input pdb id.")
+    print("Use example:")
+    print("\tpython %s %s %s"%(__file__,"1FAT","..."))
+    sys.exit(0)
+
+pdb_codes=[]
+
+pdb_codes=sys.argv[1:]
+print(pdb_codes)
+pdbl = PDBList()
+#pdbl.retrieve_pdb_file("1FAT")
+for i in pdb_codes:
+    #print("get %s "%i)
+    pdbl.retrieve_pdb_file( i,  pdir=cwd)#北京组学生物科技有限公司
+#学习perl语言：
+#perl入门：https://study.163.com/course/introduction/1006448023.htm?share=1&shareId=1030291076
+#perl高级：https://study.163.com/course/introduction/1004833023.htm?share=1&shareId=1030291076
+
+die "perl $0 <genome.fa> <weizhi.txt> <OUT> " unless(@ARGV==3 );
+use Math::BigFloat;
+use Bio::SeqIO;
+use Bio::Seq;
+$in = Bio::SeqIO -> new(-file => "$ARGV[0]",
+                                  -format => 'Fasta');
+$out = Bio::SeqIO -> new(-file => ">$ARGV[2]",
+                                  -format => 'Fasta');
+my %keep=() ;
+open IN,"$ARGV[0]" or die "$! open file $ARGV[0] failed";
+my%ref=();
+while ( my $seq = $in->next_seq() ) {
+     my($id,$sequence,$desc)=($seq->id,$seq->seq,$seq->desc);
+     
+         $ref{$id}=$seq;
+
+}
+
+$in->close();
+
+open IN,"$ARGV[1]" or die "$! open file $ARGV[1] failed";
+while (<IN>) {
+		chomp;
+		next if /^#/;
+		my @a= split /\t/;
+		my$seq=0;
+		if(exists $ref{$a[1]}){
+			$seq=$ref{$a[1]};
+		}else{
+			print "chromosome $a[1] not in reference file\n";
+			next;
+		}
+		
+		print "$a[1]";
+     if( $a[4]  eq "-" ){
+		      $start=  $a[3]+1;
+			  $end=$a[3]+1500;
+			  if($end>$seq->length){
+              	print "Note: $seq->id: upstream don't have enough sequence to cut for $a [0] and skiped\n";
+              	next;
+
+			  }
+
+              my$seq_string=$seq->subseq($start,$end);
+              my$newseqobj1=Bio::Seq -> new(-seq => $seq_string,
+				-id => "$a[0]"
+               ) ;
+     	       my$reseq = $newseqobj1 ->revcom();
+     	       $out->write_seq($reseq);      	
+     }elsif ( $a[4]  eq "+" ){
+              $start=  $a[2]-1500;
+              if ($start<0){
+              	print "Note: $seq->id: upstream don't have enough sequence to cut for $a[0] and skiped\n";
+              	next;
+              }
+			  $end=$a[2]-1;
+
+               my$seq_string=$seq->subseq($start,$end);
+           
+               my$newseqobj1=Bio::Seq -> new(-seq => $seq_string,
+               -id => "$a[0]"
+                   
+               ) ;
+     	      
+     	       $out->write_seq($newseqobj1);          
+     }
+
+}
+close (IN);
+$in->close();
+$out->close();
+#北京组学生物科技有限公司
+#学习perl语言：
+#perl入门：https://study.163.com/course/introduction/1006448023.htm?share=1&shareId=1030291076
+#perl高级：https://study.163.com/course/introduction/1004833023.htm?share=1&shareId=1030291076
+
+use Data::Dumper;
+use Getopt::Long;
+use strict;
+use Cwd qw(abs_path getcwd);
+my %opts;
+
+GetOptions (\%opts,"id=s","tandem=s","od=s","name=s"); 
+
+
+if (! defined($opts{id}) ||! defined($opts{tandem})||! defined($opts{name}) || defined($opts{h})){
+	&USAGE;
+}
+
+sub USAGE {
+	
+	
+       print "perl $0  -id gene_family.id  -tandem gene.tandem  -name gene_famil -od ./\n";
+	exit;
+}
+
+
+my $od=$opts{od};
+$od||=getcwd;
+$od=abs_path($od);
+unless(-d $od){    mkdir $od;}
+
+####get target gene id
+
+my $gene;
+my @info;
+my %hashG;
+open (IN,"$opts{id}") || die "open $opts{id} failed\n";
+while(<IN>){
+    chomp;
+    @info=split(/\s+/,$_);
+    $gene=$info[0];
+    $hashG{$gene}=$gene;
+}
+close(IN);
+
+
+#######select tandem
+
+
+my $Agene;
+my $Bgene;
+open(OUT,">$od/$opts{name}.tandem")||die "open $od/$opts{name}.tandem failed\n";
+open (IN,"$opts{tandem}") || die "open $opts{tandem} failed\n";
+while(<IN>){
+    chomp;
+    @info=split(/,/,$_);
+    $Agene=$info[0];
+    $Bgene=$info[1];
+    if(exists $hashG{$Agene} && exists $hashG{$Bgene}){
+        print OUT $Agene."\t".$Bgene."\n";
+    }
+
+}
+close(IN);
+close(OUT);#!/usr/bin/Rscript
+############################################################################
+#北京组学生物科技有限公司
+#author huangls
+#date 2021.03.16
+#version 1.0
+#学习R课程：
+#R 语言入门与基础绘图：
+# https://study.163.com/course/introduction/1209073807.htm?share=1&shareId=1030291076
+#R 语言绘图ggplot2等等：
+# https://study.163.com/course/introduction/1006149012.htm?share=1&shareId=1030291076
+
+###############################################################################################
+
+library("argparse")
+parser <- ArgumentParser(description='plot geneExp heatmap')
+
+parser$add_argument( "-i", "--input", type="character",required=T,
+		help="input gene expreesion matrix data ,[required]",
+		metavar="filepath")
+parser$add_argument("-s", "--showrownames", action='store_true',
+		help="whether show  rownames [optional, default: False]")
+parser$add_argument( "-c", "--color", type="character",nargs='+',required=F,default=c("blue", "white", "red"),
+		help="color map of heatmap, give three color [default=c('blue', 'white', 'red')",
+		metavar="color")
+
+parser$add_argument( "-o", "--outdir", type="character", default=getwd(),
+		help="output file directory [default cwd]",
+		metavar="outdir")
+parser$add_argument("-n", "--name", type="character", default="heatmap",
+		help="out file name prefix [default heatmap]",
+		metavar="prefix")
+parser$add_argument( "-H", "--height", type="double", default=8,
+		help="the height of pic   inches  [default 8]",
+		metavar="height")
+parser$add_argument("-W", "--width", type="double", default=5,
+		help="the width of pic   inches [default 5]",
+		metavar="width")
+
+opt <- parser$parse_args()
+
+if( !file.exists(opt$outdir) ){
+	if( !dir.create(opt$outdir, showWarnings = FALSE, recursive = TRUE) ){
+		stop(paste("dir.create failed: outdir=",opt$outdir,sep=""))
+	}
+}
+
+library(pheatmap)
+
+#-----------------------------------------------------------------
+# reading data
+#-----------------------------------------------------------------
+df<-read.table(opt$input,sep="\t",row.names=1,header = TRUE,check.names=FALSE,comment.char="")
+
+#去除表达量全为零的行
+if(sum(rowSums(df)==0)>0){
+	print(c("去除在所有的样本中表达量都为0的基因:",rownames(df)[rowSums(df)==0]))
+
+	df=df[rowSums(df)!=0,]	
+}
+
+
+
+color_map<-colorRampPalette(opt$color)(100)
+#更多热图参数调整见：https://www.omicsclass.com/article/1162
+
+
+pdf(file=paste(opt$outdir,"/",opt$name,".pdf",sep=""), height=opt$height, width=opt$width)
+pheatmap(df,color=color_map,border=FALSE, 
+		scale="row",
+		show_colnames=TRUE,
+		show_rownames=opt$showrownames
+		)
+dev.off()
+png(filename=paste(opt$outdir,"/",opt$name,".png",sep=""), height=opt$height*300, width=opt$width*300, res=300, units="px")
+pheatmap(df,color=color_map,border=FALSE, 
+		scale="row",
+		show_rownames=opt$showrownames,
+		show_colnames=TRUE)
+dev.off()
+
+
+
+
+#北京组学生物科技有限公司
+#学习perl语言：
+#perl入门：https://study.163.com/course/introduction/1006448023.htm?share=1&shareId=1030291076
+#perl高级：https://study.163.com/course/introduction/1004833023.htm?share=1&shareId=1030291076
+
+use Getopt::Long;
+my %opts;
+use Data::Dumper;
+GetOptions (\%opts,"in1=s","in2=s","out=s","h"); 
+if (! defined($opts{in1}) ||! defined($opts{in2})||! defined($opts{out}) || defined($opts{h})){
+	&USAGE;
+}
+open (IN1,"$opts{in1}") || die "open $opts{in} failed\n";
+open (IN2,"$opts{in2}") || die "open $opts{ina} failed\n";
+open (OUT,">$opts{out}") || die "open $opts{out} failed\n";
+ my %cds_length;
+while(<IN1>){
+	chomp;
+	my @line = split("\t",$_);
+	$cds_length{$line[0]}= $line[1];
+	#print "$cds_length{$line[0]}\n";
+} 
+
+while( <IN2>){
+	
+		chomp($_);
+		my @line1 = split ("\t",$_);
+		#print @line1;
+		#print "\n";
+		my $max_length = $cds_length{$line1[0]} > $cds_length{$line1[1]} ? $cds_length{$line1[0]}:$cds_length{$line1[1]};
+		if(($line1[0] ne $line1[1]) && ($line1[2] > 70 )&& ($line1[3] > 0.70*$max_length)){
+			print OUT $_."\t$max_length\n";
+		
+		}
+		#print $cds_length1{$line1[0]};
+	
+}
+
+
+close(IN1);
+close(IN2);
+close(OUT);
+sub USAGE {
+       print "usage: perl $0 -in1 cds_length   -in2 result.txt -out shaixuan_result.txt";
+	exit;
+}#北京组学生物科技有限公司
+#学习perl语言：
+#perl入门：https://study.163.com/course/introduction/1006448023.htm?share=1&shareId=1030291076
+#perl高级：https://study.163.com/course/introduction/1004833023.htm?share=1&shareId=1030291076
+
+use strict;
+use Cwd qw(abs_path getcwd);
+use Getopt::Long;
+use Data::Dumper;
+
+
+die "perl $0 <gff> <outfile>" unless(@ARGV==2);
+
+
+
+my$gff=$ARGV[0];
+my%gene=();
+my%gene_region=();
+my%mRNA2Gene=();
+open IN,"$gff" or die "$!; can't open file $gff\n";
+open OUT ,">$ARGV[1]" or die "$!; can't open file $ARGV[1]\n";
+print OUT "#mRNA_ID\tgene_ID\tchr\tstart\tend\tstrand\n";
+while(<IN>){
+	chomp;
+	next if (/^#/);
+	my@tmp=split(/\t/);
+	if($tmp[2] =~/^gene$/){
+		my($id)=($tmp[8]=~/ID=([^;]+)/);
+		$gene{$id}=1;
+		$gene_region{$id}=[$tmp[0],$tmp[3],$tmp[4],$tmp[6]];
+		
+		
+		#print "gene:$id\n";
+		#my$gene_chr->{$id}=$tmp[0];
+	}
+	if($tmp[2] =~/^mRNA$/i or $tmp[2] =~/^transcript$/i){
+		my($id)=($tmp[8]=~/ID=([^;]+)/);
+		my($pid)=($tmp[8]=~/Parent=([^;]+)/);
+		print OUT "$id\t$pid\t";
+		
+		if(exists $gene{$pid}){
+			print OUT "$tmp[0]\t$tmp[3]\t$tmp[4]\t$tmp[6]\n";
+		}
+		#print "mRNA:$id\n";
+	}
+}
+
+close(IN);
+close(OUT);
+
+
+	
+
+###################################
+# 处理ID
+###################################
+
+# indica
+df_indica <- pac4xiang::fasta2df("results/step3_planttfdb_rebuild_and_research/wrky_planttfdb_indica.fas")
+
+for (i in 1:nrow(df_indica)) {
+  df_indica$id[i] <- stringr::str_split(df_indica$id[i], "\\|")[[1]][1] %>%
+    stringr::str_replace(">", "")
+}
+
+pac4xiang::df2fasta(df_indica) %>%
+  data.table::fwrite(
+    file = "results/step3_planttfdb_rebuild_and_research/wrky_planttfdb_indica.new.fas",
+    col.names = FALSE, row.names = FALSE, quote = FALSE
+  )
+
+
+# japonica
+df_japonica <- pac4xiang::fasta2df("results/step3_planttfdb_rebuild_and_research/wrky_planttfdb_japonica.fas")
+
+for (i in 1:nrow(df_japonica)) {
+  df_japonica$id[i] <- stringr::str_split(df_japonica$id[i], "\\|")[[1]][1] %>%
+    stringr::str_replace(">", "")
+}
+
+pac4xiang::df2fasta(df_japonica) %>%
+  data.table::fwrite(
+    file = "results/step3_planttfdb_rebuild_and_research/wrky_planttfdb_japonica.new.fas",
+    col.names = FALSE, row.names = FALSE, quote = FALSE
+  )
+
+# 比较三种方法得到的基因ID的异同
+
+library(ggvenn)
+
+geneid = data.table::fread("results/step1_get_id/mRNA2geneID.txt", header = TRUE) 
+
+df1 <- data.table::fread("results/step2_hmm_search/unique.id.txt", header = FALSE) %>% 
+  merge(geneid[,c(1,2)], by.x = "V1", by.y = "#mRNA_ID", all.x = TRUE) %>% 
+  dplyr::mutate(gene_ID = stringr::str_replace(gene_ID,"\\..{1,10}",""))
+
+df2 <- data.table::fread("results/step3_planttfdb_rebuild_and_research/planttfdb.indica.unique.id.txt", header = FALSE)  %>% 
+  merge(geneid[,c(1,2)], by.x = "V1", by.y = "#mRNA_ID", all.x = TRUE) %>% 
+  dplyr::mutate(gene_ID = stringr::str_replace(gene_ID,"\\..{1,10}",""))
+
+df3 <- data.table::fread("results/step3_planttfdb_rebuild_and_research/planttfdb.japonica.unique.id.txt", header = FALSE) %>% 
+  merge(geneid[,c(1,2)], by.x = "V1", by.y = "#mRNA_ID", all.x = TRUE) %>% 
+  dplyr::mutate(gene_ID = stringr::str_replace(gene_ID,"\\..{1,10}",""))
+
+df4 = data.table::fread("results/step8_glaberrima/first.domain.selected.txt", header = FALSE) %>% 
+  dplyr::select(V1) %>% 
+  dplyr::distinct_all() %>% 
+  dplyr::rename(gene = V1) %>% 
+  dplyr::mutate(gene = stringr::str_replace(gene,"\\..{1,10}","")) %>% 
+  dplyr::distinct_all()
+
+
+
+
+li <- list(
+  Pfam = df1$gene_ID,
+  O.japonica = df3$gene_ID,
+  O.indica = df2$gene_ID,
+  O.glaberrima = df4$gene
+)
+
+ggvenn(li, 
+       show_percentage = FALSE,
+       fill_color = c("#ff5900","#0d0dbb","#00b76d","#c5199e"),  
+       fill_alpha = 0.8,
+       set_name_color = "black",
+       set_name_size = 6,
+       text_color = "white",
+       text_size = 6
+       )
+export::graph2tif(file = "results/step3_planttfdb_rebuild_and_research/三种方法比较的韦恩图.tif",
+                  width = 8,
+                  height = 6,
+                  dpi = 500)
+
+export::graph2pdf(file = "results/step3_planttfdb_rebuild_and_research/三种方法比较的韦恩图.pdf",
+                  width = 8,
+                  height = 6)
+
+export::graph2ppt(file = "results/step3_planttfdb_rebuild_and_research/三种方法比较的韦恩图.pptx",
+                  width = 8, height = 6, center = TRUE)
+
+
+
+
+
+
+
+
+
+###################################
+# 处理ID
+###################################
+
+# indica
+df_indica <- pac4xiang::fasta2df("results/step3_planttfdb_rebuild_and_research/wrky_planttfdb_indica.fas")
+
+for (i in 1:nrow(df_indica)) {
+  df_indica$id[i] <- stringr::str_split(df_indica$id[i], "\\|")[[1]][1] %>%
+    stringr::str_replace(">", "")
+}
+
+pac4xiang::df2fasta(df_indica) %>%
+  data.table::fwrite(
+    file = "results/step3_planttfdb_rebuild_and_research/wrky_planttfdb_indica.new.fas",
+    col.names = FALSE, row.names = FALSE, quote = FALSE
+  )
+
+
+# japonica
+df_japonica <- pac4xiang::fasta2df("results/step3_planttfdb_rebuild_and_research/wrky_planttfdb_japonica.fas")
+
+for (i in 1:nrow(df_japonica)) {
+  df_japonica$id[i] <- stringr::str_split(df_japonica$id[i], "\\|")[[1]][1] %>%
+    stringr::str_replace(">", "")
+}
+
+pac4xiang::df2fasta(df_japonica) %>%
+  data.table::fwrite(
+    file = "results/step3_planttfdb_rebuild_and_research/wrky_planttfdb_japonica.new.fas",
+    col.names = FALSE, row.names = FALSE, quote = FALSE
+  )
+
+
+# 比较三种方法得到的基因ID的异同
+
+library(ggvenn)
+
+geneid = data.table::fread("results/step1_get_id/mRNA2geneID.txt", header = TRUE) 
+
+df1 <- data.table::fread("results/step2_hmm_search/unique.id.txt", header = FALSE) %>% 
+  merge(geneid[,c(1,2)], by.x = "V1", by.y = "#mRNA_ID", all.x = TRUE)
+
+df2 <- data.table::fread("results/step3_planttfdb_rebuild_and_research/planttfdb.indica.unique.id.txt", header = FALSE)  %>% 
+  merge(geneid[,c(1,2)], by.x = "V1", by.y = "#mRNA_ID", all.x = TRUE)
+
+df3 <- data.table::fread("results/step3_planttfdb_rebuild_and_research/planttfdb.japonica.unique.id.txt", header = FALSE) %>% 
+  merge(geneid[,c(1,2)], by.x = "V1", by.y = "#mRNA_ID", all.x = TRUE)
+
+
+li <- list(
+  PlantTFDB_indica = df2$gene_ID,
+  PlantTFDB_japonica = df3$gene_ID,
+  Pfam = df1$gene_ID
+)
+
+ggvenn(li, 
+       show_percentage = FALSE,
+       fill_color = c("#ff5900","#0d0dbb","#00b76d"),  
+       fill_alpha = 0.8,
+       set_name_color = "black",
+       set_name_size = 6,
+       text_color = "white",
+       text_size = 6
+       )
+export::graph2tif(file = "results/step3_planttfdb_rebuild_and_research/三种方法比较的韦恩图.tif",
+                  width = 6,
+                  height = 6,
+                  dpi = 500)
+
+
+
+
+
+
+
+
+
+
+
+
+#北京组学生物科技有限公司
+#学习perl语言：
+#perl入门：https://study.163.com/course/introduction/1006448023.htm?share=1&shareId=1030291076
+#perl高级：https://study.163.com/course/introduction/1004833023.htm?share=1&shareId=1030291076
+
+die "perl $0 <mRNA2genefile> <idlist> <outfile>" unless(@ARGV==3);
+
+
+
+open IN ,"$ARGV[0]" or die "$!; can't open file $ARGV[0]\n";
+open OUT,">$ARGV[2]" or die "$!; can't open file $ARGV[2]\n";
+my%mRNA2geneData;
+my%mRNA2gene;
+
+my%gene2mRNA;
+
+print OUT "#geneID\tmRNAID\n";
+while (<IN>){
+	chomp;
+	if(/^#/){
+		
+		next;
+		
+	}
+
+	my@tmp=split(/\t/);
+	$mRNA2gene{$tmp[0]}=$tmp[1];
+	$mRNA2geneData{$tmp[0]}=$_;
+	$gene2mRNA{$tmp[1]}{$tmp[0]}=1;
+
+}
+
+close(IN);
+
+open IN,"$ARGV[1]" or die "$!";
+my%uniqGene;
+
+while (<IN>){
+	chomp;
+	next if /^#/;
+	my@tmp=split(/\s+/);
+	$uniqGene{$mRNA2gene{$tmp[0]}}{$tmp[0]}=1;
+
+}
+close(IN);
+
+
+for my$geneID(keys %uniqGene){
+	
+	my$transcriptIDNumber=scalar keys %{$uniqGene{$geneID}};
+	my@transIDs=keys %{$uniqGene{$geneID}};
+	
+	print OUT "$geneID\t".join("\t",sort{$a cmp $b} @transIDs)."\n";
+}
+
+close(OUT);
+#北京组学生物科技有限公司
+#学习perl语言：
+#perl入门：https://study.163.com/course/introduction/1006448023.htm?share=1&shareId=1030291076
+#perl高级：https://study.163.com/course/introduction/1004833023.htm?share=1&shareId=1030291076
+
+
+die "perl $0 <in>  <out>" unless(@ARGV==2);
+use Bio::SeqIO;
+use Bio::Seq;
+use Bio::Tools::SeqStats;
+use Bio::Tools::pICalculator;
+use Data::Dumper;
+#读入序列
+my $in = Bio::SeqIO->new(
+	-file   => "$ARGV[0]",
+	-format => 'Fasta'
+);
+
+open OUT,">$ARGV[1]" or die "$!; can't open file $ARGV[1]\n";
+print OUT "#ID\tlength\tMW(Da)\tpI\n";
+my $calc = Bio::Tools::pICalculator->new(-places => 2,-pKset => 'EMBOSS');
+
+
+#逐条读取序列并计算
+while ( my $seq = $in->next_seq() ) {
+	#my ( $id, $sequence, $desc ) = ( $seq->id, $seq->seq, $seq->desc );
+	my $weight = Bio::Tools::SeqStats ->get_mol_wt($seq);
+	$calc->seq($seq);
+    my $iep = $calc->iep;
+    print OUT sprintf("%s\t%s\t%s\t%s\n",
+                  $seq->id,
+                  $seq->length,
+                  "$weight->[0]",
+                  $iep);
+}
+$in->close();
+close(OUT);
